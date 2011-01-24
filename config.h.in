@@ -1,0 +1,36 @@
+#pragma once
+
+/// usleep()
+#cmakedefine HAVE_USLEEP
+#ifndef HAVE_USLEEP
+
+#ifdef WIN32
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+void __stdcall Sleep(unsigned long ms);
+#ifdef __cplusplus
+}
+#endif
+#define usleep(e) Sleep((unsigned long)((e)/1000.0))
+#else
+#define usleep(e) 
+#endif
+
+#endif //HAVE_USLEEP not defined
+
+/// srand48
+#cmakedefine HAVE_UNISTD
+#ifdef HAVE_UNISTD
+#include <unistd.h>
+#else
+
+#ifdef WIN32
+#define seed48(e)     srand(*(e))
+#define drand48() (( (double)rand() )/RAND_MAX)
+#else
+#error "Don't know how to choose a random number generator"
+#endif
+
+#endif // HAVE_UNISTD not defined

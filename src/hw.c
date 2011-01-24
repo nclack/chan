@@ -7,7 +7,7 @@
 
 void* work(void *tid_)
 { long tid=(long)tid_;
-  printf("Hello thread %ld.\n");
+  printf("Hello thread %ld.\n",tid);
   pthread_exit(NULL);
 }
 
