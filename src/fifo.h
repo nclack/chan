@@ -69,21 +69,21 @@ void    Fifo_Expand  ( Fifo *self );
 void    Fifo_Resize  ( Fifo *self, size_t buffer_size_bytes );
 void    Fifo_Free    ( Fifo *self );
 
-inline unsigned int Fifo_Pop       ( Fifo *self, void **pbuf, size_t sz);                    //                             *pbuf==NULL ok (allocs)
-inline unsigned int Fifo_Peek      ( Fifo *self, void **pbuf, size_t sz);                    // copies, might resize *pbuf, *pbuf==NULL ok (allocs)
-inline unsigned int Fifo_Peek_At   ( Fifo *self, void **pbuf, size_t sz, size_t index);      // copies, might resize *pbuf
-       unsigned int Fifo_Push      ( Fifo *self, void **pbuf, size_t sz, int expand_on_full);// might resize queue's bufs,  *pbuf==NULL ok (allocs)
-inline unsigned int Fifo_Push_Try  ( Fifo *self, void **pbuf, size_t sz);                    // might resize queue's bufs,  *pbuf==NULL ok (allocs)
+extern unsigned int Fifo_Pop       ( Fifo *self, void **pbuf, size_t sz);                    //                             *pbuf==NULL ok (allocs)
+extern unsigned int Fifo_Peek      ( Fifo *self, void **pbuf, size_t sz);                    // copies, might resize *pbuf, *pbuf==NULL ok (allocs)
+extern unsigned int Fifo_Peek_At   ( Fifo *self, void **pbuf, size_t sz, size_t index);      // copies, might resize *pbuf
+extern unsigned int Fifo_Push      ( Fifo *self, void **pbuf, size_t sz, int expand_on_full);// might resize queue's bufs,  *pbuf==NULL ok (allocs)
+extern unsigned int Fifo_Push_Try  ( Fifo *self, void **pbuf, size_t sz);                    // might resize queue's bufs,  *pbuf==NULL ok (allocs)
 
-void*       Fifo_Alloc_Token_Buffer( Fifo *self );
+extern size_t       Fifo_Buffer_Size_Bytes ( Fifo *self );
+       void*        Fifo_Alloc_Token_Buffer( Fifo *self );
+#define Fifo_Free_Token_Buffer(e) free(e)
 
-inline unsigned char Fifo_Is_Empty(Fifo *self);
-inline unsigned char Fifo_Is_Full (Fifo *self);
+extern unsigned char Fifo_Is_Empty(Fifo *self_);
+extern unsigned char Fifo_Is_Full (Fifo *self_);
 
 #define     FIFO_SUCCESS(expr) ((expr)==0)
 #define     FIFO_FAILURE(expr) (!FIFO_SUCCESS(expr))
-
-
 
 #ifdef __cplusplus
 }

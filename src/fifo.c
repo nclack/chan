@@ -189,6 +189,7 @@ Fifo_Alloc(size_t buffer_count, size_t buffer_size_bytes )
 { Fifo_ *self = (Fifo_ *)Guarded_Malloc( sizeof(Fifo_), "Fifo_Alloc" );
   
   Fifo_Assert( IS_POW2( buffer_count ) );
+  return_val_if(!IS_POW2(buffer_count),NULL);
 
   self->head = 0;
   self->tail = 0;
@@ -303,7 +304,6 @@ _swap( Fifo *self_, void **pbuf, size_t idx)
   return idx;                                    //   an overflow
 }
 
-extern inline 
 unsigned int
 Fifo_Pop( Fifo *self_, void **pbuf, size_t sz)
 { Fifo_ *self = (Fifo_*)self_;
@@ -315,7 +315,6 @@ Fifo_Pop( Fifo *self_, void **pbuf, size_t sz)
   return 0;
 }
 
-extern inline 
 unsigned int
 Fifo_Peek( Fifo *self_, void **pbuf, size_t sz)
 { Fifo_ *self = (Fifo_*)self_;
@@ -334,7 +333,6 @@ Fifo_Peek( Fifo *self_, void **pbuf, size_t sz)
   return 0;
 }
 
-extern inline 
 unsigned int
 Fifo_Peek_At( Fifo *self_, void **pbuf, size_t sz, size_t index)
 { Fifo_ *self = (Fifo_*)self_;
@@ -347,13 +345,12 @@ Fifo_Peek_At( Fifo *self_, void **pbuf, size_t sz, size_t index)
     
   { vector_PVOID *r = self->ring;
     memcpy( *pbuf, 
-            r->contents[MOD_UNSIGNED_POW2(index, r->nelem)],
+            r->contents[MOD_UNSIGNED_POW2(self->tail + index, r->nelem)],
             self->buffer_size_bytes );
   }
   return 0;
 }
 
-extern inline 
 unsigned int
 Fifo_Push_Try( Fifo *self_, void **pbuf, size_t sz)
 { //fifo_debug("+?head: %-5d tail: %-5d size: %-5d TRY\r\n",self->head, self->tail, self->head - self->tail);
@@ -397,6 +394,10 @@ Fifo_Push( Fifo *self_, void **pbuf, size_t sz, int expand_on_full)
   return !expand_on_full;   // return true iff data was overwritten
 }
 
+inline 
+size_t Fifo_Buffer_Size_Bytes(Fifo *self)
+{ return ((Fifo_*)self)->buffer_size_bytes;
+}
 void*
 Fifo_Alloc_Token_Buffer( Fifo *self_ )
 { Fifo_ *self = (Fifo_*)self_;
@@ -404,12 +405,10 @@ Fifo_Alloc_Token_Buffer( Fifo *self_ )
                          "Fifo_Alloc_Token_Buffer" );
 }
 
-extern inline 
 unsigned char Fifo_Is_Empty(Fifo *self_)
 { Fifo_ *self = (Fifo_*)self_;
   return ( (self)->head == (self)->tail );
 }
-extern inline 
 unsigned char Fifo_Is_Full (Fifo *self_)
 { Fifo_ *self = (Fifo_*)self_;
   return ( (self)->head == (self)->tail + (self)->ring->nelem );

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(threads)
+project(chan)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 if(WIN32)
@@ -41,6 +41,7 @@ include_directories(src)
   include_directories("${PROJECT_BINARY_DIR}")
 
 ###############################################################################
-#  Tets  
+#  Test  
 ###############################################################################
+enable_testing(true)
 add_subdirectory(test)
