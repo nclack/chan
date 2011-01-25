@@ -45,7 +45,7 @@ include_directories(src)
   include(CheckIncludeFile)
   include(CheckCSourceCompiles)
   check_function_exists(usleep HAVE_USLEEP)
-  check_c_source_compiles("int main(int argc,char*argv[]){ int a = 0; return __sync_add_and_fetch(&a,10);}" HAVE_ATOMIC_INTRINSICS_GCC)
+  check_c_source_compiles("main(){int a=0; return __sync_add_and_fetch(&a,10);}" HAVE_ATOMIC_INTRINSICS_GCC)
   check_function_exists(InterlockedIncrement HAVE_ATOMIC_INTRINSICS_MSVC)
   check_include_file(unistd.h HAVE_UNISTD)
   configure_file ("${PROJECT_SOURCE_DIR}/config.h.in"

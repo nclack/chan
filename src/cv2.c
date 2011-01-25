@@ -11,8 +11,8 @@
 #include <stdlib.h>
 
 #define SZ 10
-#define PSLEEP  500 //ms
-#define CSLEEP 2000 //ms
+#define PSLEEP  50  //ms
+#define CSLEEP 200  //ms
 
 long buffer[SZ];
 long last;
@@ -86,8 +86,9 @@ void* consumer(void *p)
   return NULL;
 }
 
+#define N 4
 int main(int argc,char* argv[])
-{ pthread_t threads[3];
+{ pthread_t threads[N];
   pthread_cond_init(&bufferNotFull,NULL);
   pthread_cond_init(&bufferNotEmpty,NULL);
   pthread_mutex_init(&bufferLock,NULL);
@@ -96,6 +97,7 @@ int main(int argc,char* argv[])
   pthread_create(threads+0,NULL,producer,(void*)0);
   pthread_create(threads+1,NULL,consumer,(void*)1);
   pthread_create(threads+2,NULL,consumer,(void*)2);
+  pthread_create(threads+3,NULL,producer,(void*)3);
 
   puts("Press enter to stop...");
   getchar();
@@ -108,7 +110,7 @@ int main(int argc,char* argv[])
   pthread_cond_broadcast(&bufferNotEmpty);
 
   { int i=0;
-    for(i=0;i<3;++i)
+    for(i=0;i<N;++i)
       pthread_join(threads[i],NULL);
   }
   return 0;
