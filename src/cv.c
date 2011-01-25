@@ -19,10 +19,10 @@ void *inc(void *t)
   for(i=0;i<T;++i)
   { pthread_mutex_lock(&count_mutex);
     ++count;
-    if(count==L)
+    if(count>=L)
     { printf("inc(): thread %ld, count = %d  Threshold reached.",my_id,count);
-      //pthread_cond_signal(&count_threshold_cv);
-      pthread_cond_broadcast(&count_threshold_cv);
+      pthread_cond_signal(&count_threshold_cv);
+      //pthread_cond_broadcast(&count_threshold_cv);
       printf("\tSignal sent.\n");
     }
     printf("inc(): thread %ld, count = %d  Release mutex.\n",my_id,count); 
