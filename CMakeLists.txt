@@ -13,14 +13,29 @@ IF(NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 #set(CMAKE_VERBOSE_MAKEFILE 1) ## Useful for debuging the build
 
+include_directories(src)
+
   set(CMAKE_THREAD_PREFER_PTHREAD 1)
   find_package(Threads)
+
+###############################################################################
+#  Targets
+###############################################################################
 
   add_executable(hw src/hw.c)
   target_link_libraries(hw
       ${CMAKE_THREAD_LIBS_INIT}
       )
-include_directories(src)
+
+  add_executable(cv src/cv.c)
+  target_link_libraries(cv
+      ${CMAKE_THREAD_LIBS_INIT}
+      )
+
+  add_executable(cv2 src/cv2.c)
+  target_link_libraries(cv2
+      ${CMAKE_THREAD_LIBS_INIT}
+      )
 
 ###############################################################################
 #  Config
@@ -28,7 +43,10 @@ include_directories(src)
 
   include(CheckFunctionExists)
   include(CheckIncludeFile)
+  include(CheckCSourceCompiles)
   check_function_exists(usleep HAVE_USLEEP)
+  check_c_source_compiles("int main(int argc,char*argv[]){ int a = 0; return __sync_add_and_fetch(&a,10);}" HAVE_ATOMIC_INTRINSICS_GCC)
+  check_function_exists(InterlockedIncrement HAVE_ATOMIC_INTRINSICS_MSVC)
   check_include_file(unistd.h HAVE_UNISTD)
   configure_file ("${PROJECT_SOURCE_DIR}/config.h.in"
       "${PROJECT_BINARY_DIR}/config.h" )

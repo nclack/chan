@@ -13,9 +13,11 @@ void __stdcall Sleep(unsigned long ms);
 #ifdef __cplusplus
 }
 #endif
-#define usleep(e) Sleep((unsigned long)((e)/1000.0))
+#define usleep(e) Sleep((unsigned long)((e)/1000.0)) // us -> ms
+#define  sleep(e) Sleep((unsigned long)((e)*1000.0)) //  s -> ms
 #else
-#define usleep(e) 
+// Not windows and missing usleep (not *nix?)
+#error "Can't find replacement for usleep(), etc.."
 #endif
 
 #endif //HAVE_USLEEP not defined
@@ -34,3 +36,19 @@ void __stdcall Sleep(unsigned long ms);
 #endif
 
 #endif // HAVE_UNISTD not defined
+
+//////////////////////////////////////////////////////////////////////
+// Atomic intrinsics
+// - prefer the windows syntax
+//////////////////////////////////////////////////////////////////////
+
+#cmakedefine HAVE_ATOMIC_INTRINSICS_GCC
+#cmakedefine HAVE_ATOMIC_INTRINSICS_MSVC
+#if !defined(HAVE_ATOMIC_INTRINSICS_GCC) && !defined(HAVE_ATOMIC_INTRINSICS_MSVC)
+#error "Don't know how to choose atomic intrinsics"
+#endif
+
+#ifdef HAVE_ATOMIC_INTRINSICS_GCC
+#define InterlockedIncrement(e) __sync_add_and_fetch((e),1)
+#endif
+
