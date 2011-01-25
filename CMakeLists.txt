@@ -22,20 +22,6 @@ include_directories(src)
 #  Targets
 ###############################################################################
 
-  add_executable(hw src/hw.c)
-  target_link_libraries(hw
-      ${CMAKE_THREAD_LIBS_INIT}
-      )
-
-  add_executable(cv src/cv.c)
-  target_link_libraries(cv
-      ${CMAKE_THREAD_LIBS_INIT}
-      )
-
-  add_executable(cv2 src/cv2.c)
-  target_link_libraries(cv2
-      ${CMAKE_THREAD_LIBS_INIT}
-      )
 
 ###############################################################################
 #  Config
@@ -44,6 +30,8 @@ include_directories(src)
   include(CheckFunctionExists)
   include(CheckIncludeFile)
   include(CheckCSourceCompiles)
+  include(CheckTypeSize)
+  check_type_size(size_t SIZET_BYTES)
   check_function_exists(usleep HAVE_USLEEP)
   check_c_source_compiles("main(){int a=0; return __sync_add_and_fetch(&a,10);}" HAVE_ATOMIC_INTRINSICS_GCC)
   check_function_exists(InterlockedIncrement HAVE_ATOMIC_INTRINSICS_MSVC)
@@ -52,3 +40,7 @@ include_directories(src)
       "${PROJECT_BINARY_DIR}/config.h" )
   include_directories("${PROJECT_BINARY_DIR}")
 
+###############################################################################
+#  Tets  
+###############################################################################
+add_subdirectory(test)
