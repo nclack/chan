@@ -17,6 +17,7 @@ class FifoTest:public ::testing::Test
   virtual void TearDown()
   {
     Fifo_Free(empty);
+    Fifo_Free(full );
     Fifo_Free_Token_Buffer(buf);
   };
 

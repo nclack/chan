@@ -2,14 +2,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
 //////////////////////////////////////////////////////////////////////
 //  Logging    ///////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 #define fifo_warning(...) printf(__VA_ARGS__);
-#define fifo_error(...)   fprintf(stderr,__VA_ARGS__);
+#define fifo_error(...)   do{fprintf(stderr,__VA_ARGS__);exit(-1);}while(0)
 #ifdef DEBUG_RING_FIFO
-#define fifo_debug(...) debug(__VA_ARGS__)
+#define fifo_debug(...) printf(__VA_ARGS__)
 #else
 #define fifo_debug(...)
 #endif

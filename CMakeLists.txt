@@ -15,8 +15,21 @@ ENDIF(NOT CMAKE_BUILD_TYPE)
 
 include_directories(src)
 
-  set(CMAKE_THREAD_PREFER_PTHREAD 1)
+  set(CMAKE_THREAD_PREFER_PTHREAD 0)
   find_package(Threads)
+
+macro(show VAR)
+  message("** ${VAR} is ${${VAR}}")
+endmacro()
+
+  set(USE_PTHREAD       ${CMAKE_USE_PTHREADS_INIT})
+  set(USE_WIN32_THREADS ${CMAKE_USE_WIN32_THREADS_INIT})
+
+  show(CMAKE_THREAD_LIBS_INIT)
+  show(CMAKE_USE_SPROC_INIT)
+  show(CMAKE_USE_WIN32_THREADS_INIT)
+  show(CMAKE_USE_PTHREADS_INIT)
+  show(CMAPE_HP_PTHREADS_INIT)
 
 ###############################################################################
 #  Targets

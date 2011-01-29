@@ -32,7 +32,9 @@ file(GLOB PRIMARY_TEST_SOURCES
     *.cpp)
 file(GLOB OTHER_SOURCES 
     ../src/*.c
-    ../src/*.cpp)
+    ../src/*.h
+    ../src/*.cpp
+    )
 add_executable(alltests 
   ${PRIMARY_TEST_SOURCES} 
   ${OTHER_SOURCES}
