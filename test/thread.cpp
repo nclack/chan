@@ -93,6 +93,7 @@ TEST(MutexTest,IncControl)
   EXPECT_NE(c.n,N);
   Mutex_Free(c.lock);
 }
+
 #define HERE printf("HERE: Line % 5d File: %s\n",__LINE__,__FILE__)
 TEST(MutexTest,RecursiveLockFails)
 { Mutex *m = Mutex_Alloc();

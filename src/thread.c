@@ -348,6 +348,7 @@ void Condition_Wait(Condition* self_, Mutex* lock_)
 { native_cond_t *self = (native_cond_t*)self_;
 	mutex_t *lock = (mutex_t*)lock_;
   pth_asrt_success(pthread_cond_wait(self,M_NATIVE(lock)));
+  lock->owner = pthread_self();
 }
 
 void Condition_Notify(Condition* self_)

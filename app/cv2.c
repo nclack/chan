@@ -10,9 +10,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define ITER 1000   //max number of items to produce
 #define SZ 10
-#define PSLEEP  50  //ms
-#define CSLEEP 200  //ms
+#define PSLEEP 100  //ms
+#define CSLEEP 100  //ms
+ 
+#define HERE printf("HERE: Line % 5d File: %s\n",__LINE__,__FILE__)
 
 long buffer[SZ];
 long last;
@@ -30,17 +33,18 @@ int stop;
 
 void* producer(void* p)
 { long id =(long)p;
-  while(1)
+  //while(1)
+  int i;
+  for(i=0;i<ITER;++i)
   { long item;
     usleep( drand48()*PSLEEP*1000.0 );
     item = InterlockedIncrement(&last);
     Mutex_Lock(bufferLock);
-
     while(qsz==SZ && stop==0)
       Condition_Wait(bufferNotFull,bufferLock);
 
     if(stop)
-    { Mutex_Unlock(bufferLock)
+    { Mutex_Unlock(bufferLock);
       break;
     }
 
@@ -86,7 +90,7 @@ void* consumer(void *p)
   return NULL;
 }
 
-#define N 4
+#define N 6
 int main(int argc,char* argv[])
 { Thread* threads[N];
   bufferNotFull  = Condition_Alloc();
@@ -94,13 +98,17 @@ int main(int argc,char* argv[])
   bufferLock     = Mutex_Alloc();
 
   stop=0;
-  { int i;
-    ThreadProc procs[N] = { producer,
-                            consumer,
-                            consumer,
-                            producer};
+  { size_t i;
+    ThreadProc procs[N] = { 
+      consumer,
+      consumer,
+      producer,
+      producer,
+      consumer,
+      producer,
+    };
     for(i=0;i<N;++i)
-      threads[i] = Thread_Alloc(procs[i],(void*),i);
+      threads[i] = Thread_Alloc(procs[i],(void*)i);
   }
 
   sleep(2);

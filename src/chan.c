@@ -25,7 +25,7 @@ unsigned Chan_Get_Ref_Count( chan* self)
 { return 0;
 }
 
-void Chan_Set_Expand_On_Full ( chan* self, int  expand_on_full)
+void Chan_Set_Expand_On_Full( chan* self, int  expand_on_full)
 {}
 
 // ----
@@ -43,19 +43,19 @@ void Chan_Set_Expand_On_Full ( chan* self, int  expand_on_full)
 // Try    fails immediatly               Fails immediately
 // Timed  waits.  Fails after timeout.   Fails after timeout
 
-unsigned int Chan_Next       ( chan *self, void **pbuf, size_t sz)
+unsigned int Chan_Next( chan *self, void **pbuf, size_t sz)
 { return FAILURE;
 }
 
-unsigned int Chan_Next_Copy  ( chan *self, void  *buf,  size_t sz) 
+unsigned int Chan_Next_Copy( chan *self, void  *buf,  size_t sz) 
 { return FAILURE;
 }
 
-unsigned int Chan_Next_Try   ( chan *self, void **pbuf, size_t sz)                     
+unsigned int Chan_Next_Try( chan *self, void **pbuf, size_t sz)                     
 { return FAILURE;
 }
 
-unsigned int Chan_Next_Timed ( chan *self, void **pbuf, size_t sz, unsigned timeout_ms )
+unsigned int Chan_Next_Timed( chan *self, void **pbuf, size_t sz, unsigned timeout_ms )
 { return FAILURE;
 }
 
@@ -66,11 +66,11 @@ unsigned int Chan_Next_Timed ( chan *self, void **pbuf, size_t sz, unsigned time
 //
 // Does not require a mode to be set.
 //
-unsigned int Chan_Peek       ( chan *self, void **pbuf, size_t sz )
+unsigned int Chan_Peek( chan *self, void **pbuf, size_t sz )
 { return FAILURE;
 }
 
-unsigned int Chan_Peek_Try   ( chan *self, void **pbuf, size_t sz )
+unsigned int Chan_Peek_Try( chan *self, void **pbuf, size_t sz )
 { return FAILURE;
 }
 
@@ -85,32 +85,32 @@ unsigned int Chan_Peek_Timed ( chan *self, void **pbuf, size_t sz, unsigned time
 //
 // Resize: when nbytes is less than current size, does nothing
 
-int         Chan_Is_Full                    ( chan *self )
+int Chan_Is_Full( chan *self )
 { return 0;
 }
 
-int         Chan_Is_Empty                   ( chan *self )
+int Chan_Is_Empty( chan *self )
 { return 0;
 }
 
-inline void Chan_Resize_Buffers             ( chan* self, size_t nbytes)
+inline void Chan_Resize_Buffers( chan* self, size_t nbytes)
 { 
 }
 
 
-void*       Chan_Token_Buffer_Alloc         ( chan *self )
+void* Chan_Token_Buffer_Alloc( chan *self )
 { return 0;
 }
 
-void*       Chan_Token_Buffer_Alloc_And_Copy( chan *self, void *src )
+void* Chan_Token_Buffer_Alloc_And_Copy( chan *self, void *src )
 { return 0;
 }
 
-void        Chan_Token_Buffer_Free          ( void *buf )
+void Chan_Token_Buffer_Free( void *buf )
 {
 }
 
-size_t      Chan_Buffer_Size_Bytes          ( chan *self )
+size_t Chan_Buffer_Size_Bytes( chan *self )
 { return 0;
 } 
 
