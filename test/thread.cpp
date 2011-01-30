@@ -18,10 +18,20 @@ void init_counter(counter *c)
 }
 void* inc(void *a)
 { counter *c=(counter*)a;
+  int v;
   Mutex_Lock(c->lock);
-  c->n++;
+  v=c->n;
+  v++;
   pause_random_10ms(NULL);
+  c->n = v;
 	Mutex_Unlock(c->lock);
+}
+void* inc_ctl(void *a)
+{ counter *c=(counter*)a;
+  int v = c->n;
+  v++;
+  pause_random_10ms(NULL);
+  c->n = v;
 }
 
 class ThreadTest:public ::testing::Test
@@ -68,12 +78,33 @@ TEST(MutexTest,Inc)
   EXPECT_EQ(c.n,N);
   Mutex_Free(c.lock);
 }
+TEST(MutexTest,IncControl)
+{ Thread *pool[100];
+  int i,N=100;
+	counter c;
+  init_counter(&c);
+  EXPECT_EQ(c.n,0);
+  for(i=0;i<N;++i)
+  { pool[i] = Thread_Alloc(inc_ctl,(void*)&c); // <50ms>*100 = 5s
+    ASSERT_NE(pool[i],(void*)NULL);
+  }
+  for(i=0;i<N;++i)
+    Thread_Join(pool[i]);
+  EXPECT_NE(c.n,N);
+  Mutex_Free(c.lock);
+}
+#define HERE printf("HERE: Line % 5d File: %s\n",__LINE__,__FILE__)
 TEST(MutexTest,RecursiveLockFails)
 { Mutex *m = Mutex_Alloc();
   ASSERT_NE(m,(void*)NULL);
   Mutex_Lock(m);
   ASSERT_DEATH(Mutex_Lock(m),"Detected an attempt to recursively acquire a mutex.*");
   Mutex_Unlock(m);
-  Mutex_Unlock(m);
+  Mutex_Free(m);
+}
+TEST(MutexTest,OrphanUnlockFails)
+{ Mutex *m = Mutex_Alloc();
+  ASSERT_NE(m,(void*)NULL);
+  ASSERT_DEATH(Mutex_Unlock(m),"Detected an attempt to unlock a mutex that hasn't been locked.*");
   Mutex_Free(m);
 }

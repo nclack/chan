@@ -308,8 +308,18 @@ ErrorAttemptedRecursiveLock:
 
 void Mutex_Unlock(Mutex* self_)
 { mutex_t *self = (mutex_t*)self_;
+  pthread_t caller = pthread_self();
+  if(!self->owner)
+    goto ErrorUnownedUnlock;
+  if(!pthread_equal(caller,self->owner))
+    goto ErrorStolenUnlock;
   self->owner = 0;
 	pth_asrt_success(pthread_mutex_unlock(M_NATIVE(self)));
+  return;
+ErrorUnownedUnlock:
+  thread_error("Detected an attempt to unlock a mutex that hasn't been locked.  This isn't allowed."ENDL);
+ErrorStolenUnlock:
+  thread_error("Detected an attempt to unlock a mutex by a thread that's not the owner.  This isn't allowed."ENDL);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -350,7 +360,3 @@ void Condition_Notify_All(Condition* self_)
   pth_asrt_success(pthread_cond_broadcast(self));
 }
 #endif // pthread
-
-
-
-
