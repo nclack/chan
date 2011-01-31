@@ -1,5 +1,6 @@
 #pragma once
 #include <stdlib.h>
+#include "config.h"
 #ifdef __cplusplus
 extern "C"{
 #endif
@@ -33,7 +34,7 @@ void     Chan_Set_Expand_On_Full ( chan* self, int  expand_on_full);            
 // =====  ============================   ===================
 // -      may overwrite or expand        Waits forever
 // Copy   may overwrite or expand        Waits forever
-// Try    fails immediatly               Fails immediately
+// Try    fails immediately              Fails immediately
 // Timed  waits.  Fails after timeout.   Fails after timeout
 
 unsigned int Chan_Next       ( chan *self, void **pbuf, size_t sz); 
@@ -59,7 +60,7 @@ unsigned int Chan_Peek_Timed ( chan *self, void **pbuf, size_t sz, unsigned time
 
 int         Chan_Is_Full                    ( chan *self );
 int         Chan_Is_Empty                   ( chan *self );
-inline void Chan_Resize_Buffers             ( chan* self, size_t nbytes);
+inline void Chan_Resize_Buffers             ( chan *self, size_t nbytes);
 
 void*       Chan_Token_Buffer_Alloc         ( chan *self );
 void*       Chan_Token_Buffer_Alloc_And_Copy( chan *self, void *src );

@@ -1,4 +1,5 @@
 #include "thread.h"
+#include "config.h"
 #include <gtest/gtest.h>
 
 void* pause_100ms(void* a)  {usleep(10000); return a;}
@@ -22,16 +23,23 @@ void* inc(void *a)
   Mutex_Lock(c->lock);
   v=c->n;
   v++;
+  pause_random_10ms(NULL);  
   pause_random_10ms(NULL);
   c->n = v;
 	Mutex_Unlock(c->lock);
+  return 0;
 }
+// This is a non-Mutexed version of inc()
+// Should result in a non-uniform count.
+// Meant as a negative control of inc.
 void* inc_ctl(void *a)
 { counter *c=(counter*)a;
   int v = c->n;
   v++;
+  pause_random_10ms(NULL); // pausing twice seems to help this fail
   pause_random_10ms(NULL);
   c->n = v;
+  return 0;
 }
 
 class ThreadTest:public ::testing::Test
@@ -53,6 +61,12 @@ TEST_F(ThreadTest,Alloc)
 }
 TEST_F(ThreadTest,Join)
 { 
+  EXPECT_EQ(Thread_Join(fortytwo_),(void*)42);
+}
+TEST_F(ThreadTest,MultiJoin)
+{ 
+  EXPECT_EQ(Thread_Join(fortytwo_),(void*)42);
+  EXPECT_EQ(Thread_Join(fortytwo_),(void*)42);
   EXPECT_EQ(Thread_Join(fortytwo_),(void*)42);
 }
 /*

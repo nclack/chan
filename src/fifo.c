@@ -39,8 +39,8 @@
 //////////////////////////////////////////////////////////////////////
 //  Utilities  ///////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
-#define return_if_fail( cond )          { if(!(cond)) return; }
-#define return_val_if( cond, val )      { if( (cond)) return (val); }
+#define return_if_fail(cond)          { if(!(cond)) return; }
+#define return_val_if(cond,val)       { if( (cond)) return (val); }
 #define IS_POW2_OR_ZERO(v) ( ((v) & ((v) - 1)) ==  0  )
 #define IS_POW2(v)         (!((v) & ((v) - 1)) && (v) )
 #define MOD_UNSIGNED_POW2(n,d)   ( (n) & ((d)-1) )

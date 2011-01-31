@@ -7,7 +7,7 @@
 #define ENDL "\r\n"
 #else
 #define ENDL "\n"
-#endif
+#endif //WIN32
 #define thread_error(...)    do{fprintf(stderr,__VA_ARGS__);exit(-1);}while(0)
 #define thread_assert(e)     if(!(e)) thread_error("Assert failed in thread module" ENDL \
 																									 "\tFailed: %s" ENDL \
@@ -21,9 +21,11 @@ typedef struct _closure_t
 
 
 #ifdef USE_WIN32_THREADS
-#include <windows.h>
+#define return_val_if(cond,val)    { if( (cond)) return (val); }
+#define thread_assert_win32(e)     if(!(e)) {ReportLastWindowsError(); thread_error("Assert failed in thread module" ENDL \
+                                                                                    "\tFailed: %s" ENDL \
+                                                                                    "\tAt %s:%d" ENDL,#e,__FILE__,__LINE__ );}
 
-#define thread_assert_win32(e)     if(!(e)) {ReportLastWindowsError(); thread_error("Assert failed in thread module" ENDL "\tFailed: %s" ENDL "\tAt %s:%d" ENDL "",#expression,__FILE__,__LINE__ );}
 void ReportLastWindowsError(void) 
 { //EnterCriticalSection( _get_reporting_critical_section() );
   { // Retrieve the system error message for the last-error code
@@ -85,44 +87,46 @@ handle_wait_for_result(DWORD result, const char* msg)
 typedef HANDLE    native_thread_t;
 typedef struct _thread_t
 { native_thread_t handle;
+  DWORD           id;
   closure_t       closure;
 } thread_t;
 DWORD WINAPI win32call(LPVOID lpParam)
 { closure_t* c = (closure_t*)lpParam;
-  c->res = c->proc(c->arg);
+  c->ret = c->proc(c->arg);
   return 0;
 }
 
 Thread* Thread_Alloc(ThreadProc function, ThreadProcArg arg)
 { thread_t*  t;
   closure_t* c; 
-  thread_assert(t = (thread_t*)calloc(sizeof(thread_t)));
+  thread_assert(t = (thread_t*)calloc(1,sizeof(thread_t)));
   c=&t->closure;
   c->proc=function;
   c->arg=arg;
   c->ret=NULL;
-  thread_assert_win32(SUCCESS(CreateThread(
+  thread_assert_win32(SUCCEEDED(t->handle=CreateThread(
           NULL,                       // attr
           0,                          // stack size (0=use default)
           win32call,                  // function
           (LPVOID)c,                  // argument
           0,                          // run immediately
-          &t->handle)));              // output: the thread handle
+          &t->id)));                  // output: the thread handle
   return (Thread*)t;        
 }
 
 void Thread_Free(Thread* self_)
 { thread_t *self = (thread_t*)self_;
   if(self)
-  { thread_assert_win32(CloseHandle(self->handle));
+  { Thread_Join(self_);
+    thread_assert_win32(CloseHandle(self->handle));
     free(self);
   }
 }
 
-void* Thread_Join(Thread *self)
+void* Thread_Join(Thread *self_)
 { thread_t *self = (thread_t*)self_;
-  handle_wait_for_result(WaitForSingleObject(self->handle,INFINITE));
-  return self->ret;
+  handle_wait_for_result(WaitForSingleObject(self->handle,INFINITE),"Thread_Join");
+  return self->closure.ret;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -136,18 +140,19 @@ void* Thread_Join(Thread *self)
 //  [ ] Use CRITICAL_SECTION if the the SRWLock isn't available
 //      - Although, I think windows' Condition Variables would be missing too
 //////////////////////////////////////////////////////////////////////
-typedef PSRWLOCK native_mutex_t;
+typedef SRWLOCK native_mutex_t;
 typedef struct _mutex_t
-{ native_mutex_t lock; 
-  int            count;
-  native_mutex_t self_lock; // to keep the count
+{ native_mutex_t  lock;  
+  native_mutex_t  self_lock; // to keep the count
+  DWORD           owner;
 } mutex_t;
 #define M_NATIVE(x) (&(x)->lock)
 #define M_SELF(x)   (&(x)->self_lock)
+#define M_OWNER(x)  ((x)->owner)
 
 Mutex* Mutex_Alloc()
 { mutex_t *m;
-  thread_assert(m=(mutex_t*)calloc(sizeof(mutex_t)));
+  thread_assert(m=(mutex_t*)calloc(1,sizeof(mutex_t)));
   InitializeSRWLock(M_NATIVE(m));
   InitializeSRWLock(M_SELF(m));
   return (Mutex*)m;
@@ -159,15 +164,14 @@ void Mutex_Free(Mutex* self_)
   if(self) free(self);
 }
 
-// FIXME:  see the pthread version
-//         and use GetCurrentThread
 void Mutex_Lock(Mutex* self_)
 { mutex_t *self = (mutex_t*)self_; 
+  DWORD current = GetCurrentThreadId();
   AcquireSRWLockExclusive(M_SELF(self));
-  if(self->count)
+  if(M_OWNER(self) && M_OWNER(self)==current)
     goto ErrorAttemptedRecursiveLock;
   AcquireSRWLockExclusive(M_NATIVE(self));
-  ++self->count;
+  M_OWNER(self)=current;  
   ReleaseSRWLockExclusive(M_SELF(self));
   return;
 ErrorAttemptedRecursiveLock:
@@ -175,11 +179,19 @@ ErrorAttemptedRecursiveLock:
 }
 
 void Mutex_Unlock(Mutex* self_)
-{ mutex_t *self = (mutex_t*)self_; 
-  AcquireSRWLockExclusive(M_SELF(self));
-  --self->count;
+{ mutex_t *self = (mutex_t*)self_;
+  DWORD current = GetCurrentThreadId();
+  if(!M_OWNER(self))
+    goto ErrorUnownedUnlock;
+  if(current!=M_OWNER(self))
+    goto ErrorStolenUnlock;
+  self->owner = 0;
   ReleaseSRWLockExclusive(M_NATIVE(self));
-  ReleaseSRWLockExclusive(M_SELF(self));
+  return;
+ErrorUnownedUnlock:
+  thread_error("Detected an attempt to unlock a mutex that hasn't been locked.  This isn't allowed."ENDL);
+ErrorStolenUnlock:
+  thread_error("Detected an attempt to unlock a mutex by a thread that's not the owner.  This isn't allowed."ENDL); 
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -205,18 +217,20 @@ void Condition_Free(Condition* self)
   }
 }
 
-void Condition_Wait(Condition* self_, Mutex* lock)
+void Condition_Wait(Condition* self_, Mutex* lock_)
 { native_cond_t *self = (native_cond_t*)self_;
+  mutex_t *lock = (mutex_t*)lock_;
   thread_assert_win32(
-    SleepConditionVariableSRW(self,M_SELF(lock),INFINITE,NULL));
+    SleepConditionVariableSRW(self,M_NATIVE(lock),INFINITE,0));
+  M_OWNER(lock)=GetCurrentThreadId();
 }
 
-void Condition_Notify(Condition* self)
-{ native_cond_t *self = (native_cond_t*)self_;
+void Condition_Notify(Condition* self_)
+{ native_cond_t *self = (native_cond_t*)self_;  
   WakeConditionVariable(self);
 }
 
-void Condition_Notify_All(Condition* self)
+void Condition_Notify_All(Condition* self_)
 { native_cond_t *self = (native_cond_t*)self_;
   WakeAllConditionVariable(self);
 }

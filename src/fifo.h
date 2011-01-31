@@ -1,7 +1,9 @@
 #pragma once
 
 #include "config.h"
-
+#ifdef __cplusplus
+extern "C"{
+#endif
 /*
  Ring FIFO
  ---------
@@ -57,11 +59,6 @@
    Operate by copying data out of the read point into a passed buffer.
 
 */
-
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 typedef void Fifo;
 
 Fifo*   Fifo_Alloc   ( size_t buffer_count, size_t buffer_size_bytes );
