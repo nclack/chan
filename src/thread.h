@@ -1,5 +1,6 @@
 #pragma once
 #include <stdlib.h> //for NULL
+#include "config.h"
 
 /* Questions
  * - Is a condition variable always used with the same mutex?
@@ -11,10 +12,27 @@
 extern "C"{
 #endif
 
-typedef void Thread;
-typedef void Mutex;
-typedef void Condition;
-typedef void Future;
+#ifdef USE_PTHREAD
+#include <pthread.h>
+typedef pthread_t       native_thread_t;
+typedef pthread_mutex_t native_mutex_t;
+typedef pthread_cond_t  native_cond_t;
+#endif //USE_PTHREAD
+
+#ifdef USE_WIN32_THREADS
+typedef HANDLE             native_thread_t;
+typedef SRWLOCK            native_mutex_t;
+typedef CONDITION_VARIABLE native_cond_t;
+#endif //USE_WIN32_THREADS
+
+typedef struct _mutex_t
+{ native_mutex_t  lock; 
+  native_mutex_t  self_lock;  
+  native_thread_t owner;
+} Mutex;
+
+typedef void          Thread;
+typedef native_cond_t Condition;
 
 //Prefer pthread-style thread proc specification
 typedef void* (*ThreadProc)(void*);
@@ -22,25 +40,17 @@ typedef void* ThreadProcArg;
 typedef void* ThreadProcRet;
 
 Thread* Thread_Alloc ( ThreadProc function, ThreadProcArg arg);
-void    Thread_Free  ( Thread *self);
-void*   Thread_Join  ( Thread *self);
+void    Thread_Free  ( Thread* self);
+void*   Thread_Join  ( Thread* self);
 
-/*  Don't really need futures.
-    In boost, they provide lazy eval with callbacks, but otherwise they're
-    synonymous with Join
-
-Future* Thread_Result( Thread *self);
-
-void*   Future_Get   ( Future *self); //wait till result is available and return result
-void    Future_Free  ( Future *self);
-*/
-
+extern const Mutex MUTEX_INITIALIZER;
 Mutex*  Mutex_Alloc ( );
 void    Mutex_Free  ( Mutex* self);
 void    Mutex_Lock  ( Mutex* self);
 void    Mutex_Unlock( Mutex* self);
 
 Condition* Condition_Alloc     ( );
+void       Condition_Initialize( Condition* self);
 void       Condition_Free      ( Condition* self);
 void       Condition_Wait      ( Condition* self,   Mutex* lock);
 void       Condition_Notify    ( Condition* self);

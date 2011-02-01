@@ -23,7 +23,6 @@ typedef struct _closure_t
 #ifdef USE_WIN32_THREADS
 #define return_val_if(cond,val)    { if( (cond)) return (val); }
 #define thread_assert_win32(e)     if(!(e)) {ReportLastWindowsError(); thread_error("Assert failed in thread module" ENDL \
-                                                                                    "\tFailed: %s" ENDL \
                                                                                     "\tAt %s:%d" ENDL,#e,__FILE__,__LINE__ );}
 
 void ReportLastWindowsError(void) 
@@ -140,32 +139,28 @@ void* Thread_Join(Thread *self_)
 //  [ ] Use CRITICAL_SECTION if the the SRWLock isn't available
 //      - Although, I think windows' Condition Variables would be missing too
 //////////////////////////////////////////////////////////////////////
-typedef SRWLOCK native_mutex_t;
-typedef struct _mutex_t
-{ native_mutex_t  lock;  
-  native_mutex_t  self_lock; // to keep the count
-  DWORD           owner;
-} mutex_t;
 #define M_NATIVE(x) (&(x)->lock)
 #define M_SELF(x)   (&(x)->self_lock)
 #define M_OWNER(x)  ((x)->owner)
 
+const Mutex MUTEX_INITIALIZER = {0,0,0};
+
 Mutex* Mutex_Alloc()
-{ mutex_t *m;
-  thread_assert(m=(mutex_t*)calloc(1,sizeof(mutex_t)));
+{ Mutex *m;
+  thread_assert(m=(Mutex*)calloc(1,sizeof(Mutex)));
   InitializeSRWLock(M_NATIVE(m));
   InitializeSRWLock(M_SELF(m));
   return (Mutex*)m;
 }
 
-void Mutex_Free(Mutex* self_)
-{ mutex_t *self = (mutex_t*)self_;
-  Mutex_Lock(self_);
+void Mutex_Free(Mutex* self)
+{ 
+  Mutex_Lock(self);
   if(self) free(self);
 }
 
-void Mutex_Lock(Mutex* self_)
-{ mutex_t *self = (mutex_t*)self_; 
+void Mutex_Lock(Mutex* self)
+{ 
   DWORD current = GetCurrentThreadId();
   AcquireSRWLockExclusive(M_SELF(self));
   if(M_OWNER(self) && M_OWNER(self)==current)
@@ -178,8 +173,8 @@ ErrorAttemptedRecursiveLock:
   thread_error("Detected an attempt to recursively acquire a mutex.  This isn't allowed."ENDL);
 }
 
-void Mutex_Unlock(Mutex* self_)
-{ mutex_t *self = (mutex_t*)self_;
+void Mutex_Unlock(Mutex* self)
+{ 
   DWORD current = GetCurrentThreadId();
   if(!M_OWNER(self))
     goto ErrorUnownedUnlock;
@@ -200,13 +195,16 @@ ErrorStolenUnlock:
 //  - Requires Vista or better
 //////////////////////////////////////////////////////////////////////
 
-typedef CONDITION_VARIABLE native_cond_t;
-
 Condition* Condition_Alloc()
-{ native_cond_t *c;
-  thread_assert(c = (native_cond_t*)malloc(sizeof(native_cond_t)));
+{ Condition *c;
+  thread_assert(c = (Condition*)malloc(sizeof(Condition)));
   InitializeConditionVariable(c);
   return c;
+}
+
+void Condition_Initialize(Condition* c)
+{ 
+  InitializeConditionVariable(c);
 }
 
 void Condition_Free(Condition* self)
@@ -217,21 +215,20 @@ void Condition_Free(Condition* self)
   }
 }
 
-void Condition_Wait(Condition* self_, Mutex* lock_)
-{ native_cond_t *self = (native_cond_t*)self_;
-  mutex_t *lock = (mutex_t*)lock_;
+void Condition_Wait(Condition* self, Mutex* lock)
+{ 
   thread_assert_win32(
     SleepConditionVariableSRW(self,M_NATIVE(lock),INFINITE,0));
   M_OWNER(lock)=GetCurrentThreadId();
 }
 
-void Condition_Notify(Condition* self_)
-{ native_cond_t *self = (native_cond_t*)self_;  
+void Condition_Notify(Condition* self)
+{ 
   WakeConditionVariable(self);
 }
 
-void Condition_Notify_All(Condition* self_)
-{ native_cond_t *self = (native_cond_t*)self_;
+void Condition_Notify_All(Condition* self)
+{ 
   WakeAllConditionVariable(self);
 }
 
@@ -246,7 +243,6 @@ void Condition_Notify_All(Condition* self_)
 																												"\tAt %s:%d" ENDL,#e,__FILE__,__LINE__ );} 
 #define pthread_success(e) ((e)==0)
 #define pth_asrt_success(e) thread_assert_pthread(pthread_success(e))
-typedef pthread_t native_thread_t;
 typedef struct _thread_t
 { native_thread_t handle;
 } thread_t;
@@ -282,32 +278,31 @@ void* Thread_Join(Thread *self_)
 //  here to implement Mutex on windows.  Also, I suspect it's bad design
 //  (that is, in my experience, it's usually a bug).
 //////////////////////////////////////////////////////////////////////
-typedef pthread_mutex_t native_mutex_t;
-typedef struct _mutex_t
-{ native_mutex_t  lock; 
-  native_mutex_t  self_lock;  
-  native_thread_t owner;
-} mutex_t;
 #define M_NATIVE(x) (&(x)->lock)
 #define M_SELF(x)   (&(x)->self_lock)
+const Mutex MUTEX_INITIALIZER = {
+  PTHREAD_MUTEX_INITIALIZER,
+  PTHREAD_MUTEX_INITIALIZER,
+  0
+};
 
 Mutex* Mutex_Alloc()
-{ mutex_t *m;
-  thread_assert(m=(mutex_t*)calloc(1,sizeof(mutex_t)));
+{ Mutex *m;
+  thread_assert(m=(Mutex*)calloc(1,sizeof(Mutex)));
   pth_asrt_success(pthread_mutex_init(M_NATIVE(m),NULL));
   pth_asrt_success(pthread_mutex_init(M_SELF(m)  ,NULL));
   return (Mutex*)m;
 }
 
-void Mutex_Free(Mutex* self_)
-{ mutex_t *self = (mutex_t*)self_;
+void Mutex_Free(Mutex* self)
+{ 
   pth_asrt_success(pthread_mutex_destroy(M_NATIVE(self)));
   pth_asrt_success(pthread_mutex_destroy(M_SELF  (self)));
   if(self) free(self);
 }
 
-void Mutex_Lock(Mutex* self_)
-{ mutex_t *self = (mutex_t*)self_;
+void Mutex_Lock(Mutex* self)
+{ 
   pthread_t caller = pthread_self();
   pth_asrt_success(pthread_mutex_lock(M_SELF(self)));
   if(self->owner && pthread_equal(caller,self->owner))
@@ -320,8 +315,8 @@ ErrorAttemptedRecursiveLock:
   thread_error("Detected an attempt to recursively acquire a mutex.  This isn't allowed."ENDL);
 }
 
-void Mutex_Unlock(Mutex* self_)
-{ mutex_t *self = (mutex_t*)self_;
+void Mutex_Unlock(Mutex* self)
+{ 
   pthread_t caller = pthread_self();
   if(!self->owner)
     goto ErrorUnownedUnlock;
@@ -340,17 +335,21 @@ ErrorStolenUnlock:
 //  Condition Variables //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-typedef pthread_cond_t native_cond_t;
 
 Condition* Condition_Alloc()
-{ native_cond_t *c;
-  thread_assert(c = (native_cond_t*)malloc(sizeof(native_cond_t)));
+{ Condition *c;
+  thread_assert(c = (Condition*)malloc(sizeof(Condition)));
   pth_asrt_success(pthread_cond_init(c,NULL));
   return c;
 }
 
-void Condition_Free(Condition* self_)
-{ native_cond_t *self = (native_cond_t*)self_; 
+void Condition_Initialize(Condition* c)
+{ 
+  pth_asrt_success(pthread_cond_init(c,NULL));
+}
+
+void Condition_Free(Condition* self)
+{ 
   if(self) 
   {
     pth_asrt_success(pthread_cond_destroy(self));
@@ -358,20 +357,19 @@ void Condition_Free(Condition* self_)
   }
 }
 
-void Condition_Wait(Condition* self_, Mutex* lock_)
-{ native_cond_t *self = (native_cond_t*)self_;
-	mutex_t *lock = (mutex_t*)lock_;
+void Condition_Wait(Condition* self, Mutex* lock)
+{ 
   pth_asrt_success(pthread_cond_wait(self,M_NATIVE(lock)));
   lock->owner = pthread_self();
 }
 
-void Condition_Notify(Condition* self_)
-{ native_cond_t *self = (native_cond_t*)self_;
+void Condition_Notify(Condition* self)
+{ 
   pth_asrt_success(pthread_cond_signal(self));
 }
 
-void Condition_Notify_All(Condition* self_)
-{ native_cond_t *self = (native_cond_t*)self_;
+void Condition_Notify_All(Condition* self)
+{ 
   pth_asrt_success(pthread_cond_broadcast(self));
 }
 #endif // pthread

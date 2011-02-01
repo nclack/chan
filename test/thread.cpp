@@ -63,20 +63,17 @@ TEST_F(ThreadTest,Join)
 { 
   EXPECT_EQ(Thread_Join(fortytwo_),(void*)42);
 }
+#ifdef WIN32
+// This is required for proper operation of Thread_Free() on windows.  On
+// PThread based systems, repeated joins are undefined but are not required for
+// Thread_Free() to work.
 TEST_F(ThreadTest,MultiJoin)
 { 
   EXPECT_EQ(Thread_Join(fortytwo_),(void*)42);
   EXPECT_EQ(Thread_Join(fortytwo_),(void*)42);
   EXPECT_EQ(Thread_Join(fortytwo_),(void*)42);
 }
-/*
-TEST_F(ThreadTest,Futures)
-{ Future *f = Thread_Result(fortytwo_);
-  ASSERT_NE(f,NULL);
-  EXPECT_EQ((int)Future_Get(f),42);
-  Future_Free(f);
-}
- */
+#endif
 TEST(MutexTest,Inc)
 { Thread *pool[100];
   int i,N=100;
