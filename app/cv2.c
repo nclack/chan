@@ -12,7 +12,7 @@
 
 #define ITER 1000   //max number of items to produce
 #define SZ 10
-#define PSLEEP 100  //ms
+#define PSLEEP  90  //ms
 #define CSLEEP 100  //ms
  
 #define HERE printf("HERE: Line % 5d File: %s\n",__LINE__,__FILE__)
@@ -55,7 +55,7 @@ void* producer(void* p)
     printf ("Producer %ld: item %2ld, queue size %2lu\r\n", id, item, qsz);
     Mutex_Unlock(bufferLock);
     // Wake waiting consumers
-    Condition_Notify_All(bufferNotEmpty);
+    Condition_Notify(bufferNotEmpty);
   }
   printf("Producer %ld exiting\n",id);
   return NULL;
@@ -82,7 +82,7 @@ void* consumer(void *p)
     printf ("Consumer %ld: item %2ld, queue size %2lu\r\n", id, item, qsz);
     Mutex_Unlock(bufferLock);
     // Wake waiting producers
-    Condition_Notify_All(bufferNotFull);
+    Condition_Notify(bufferNotFull);
     // Simulate processing time
     usleep( drand48()*CSLEEP*1000.0 );
   }
