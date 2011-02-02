@@ -20,6 +20,8 @@ typedef pthread_cond_t  native_cond_t;
 #endif //USE_PTHREAD
 
 #ifdef USE_WIN32_THREADS
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 typedef HANDLE             native_thread_t;
 typedef SRWLOCK            native_mutex_t;
 typedef CONDITION_VARIABLE native_cond_t;

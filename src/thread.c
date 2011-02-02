@@ -21,6 +21,7 @@ typedef struct _closure_t
 
 
 #ifdef USE_WIN32_THREADS
+#include <strsafe.h>
 #define return_val_if(cond,val)    { if( (cond)) return (val); }
 #define thread_assert_win32(e)     if(!(e)) {ReportLastWindowsError(); thread_error("Assert failed in thread module" ENDL \
                                                                                     "\tAt %s:%d" ENDL,#e,__FILE__,__LINE__ );}

@@ -38,7 +38,9 @@ endmacro()
   file(GLOB SOURCES
     src/*.h
     src/*.c
+    config.h.in
     )
+  set(SOURCES ${SOURCES} "${PROJECT_BINARY_DIR}/config.h")
 
   add_executable(cv app/cv2.c ${SOURCES})
 

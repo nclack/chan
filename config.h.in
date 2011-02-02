@@ -5,6 +5,8 @@
 // Edit config.h.in rather than config.h if any changes must be made.
 //////////////////////////////////////////////////////////////////////
 
+#pragma warning(disable: 4996 95) // MSVC deprication warnings
+
 //////////////////////////////////////////////////////////////////////
 // Line endiings
 //////////////////////////////////////////////////////////////////////
@@ -19,9 +21,12 @@
 // inline
 //////////////////////////////////////////////////////////////////////
 
-#ifdef __GCC__
 #ifndef __cplusplus
+#ifdef __GCC__
 #define inline __inline__
+#endif
+#ifdef WIN32
+#define inline __inline
 #endif
 #endif
 
@@ -34,14 +39,8 @@
 #ifndef HAVE_USLEEP
 
 #ifdef WIN32
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-void __stdcall Sleep(unsigned long ms);
-#ifdef __cplusplus
-}
-#endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #define usleep(e) Sleep((unsigned long)((e)/1000.0)) // us -> ms
 #define  sleep(e) Sleep((unsigned long)((e)*1000.0)) //  s -> ms
 #else
@@ -76,7 +75,7 @@ void __stdcall Sleep(unsigned long ms);
 
 #cmakedefine USE_PTHREAD
 #cmakedefine USE_WIN32_THREADS
-#if !defined(USE_WIN32_THREAD) && !defined(USE_PTHREAD)
+#if !defined(USE_WIN32_THREADS) && !defined(USE_PTHREAD)
 #error "No threading library found.  pthreads or win32 supported."
 #endif
 
