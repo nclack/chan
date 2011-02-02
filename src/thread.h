@@ -47,12 +47,14 @@ extern const Mutex MUTEX_INITIALIZER;
 Mutex*  Mutex_Alloc ( );
 void    Mutex_Free  ( Mutex* self);
 void    Mutex_Lock  ( Mutex* self);
+// TODO:? int     Mutex_Try_Lock(Mutex* self);
 void    Mutex_Unlock( Mutex* self);
 
 Condition* Condition_Alloc     ( );
 void       Condition_Initialize( Condition* self);
 void       Condition_Free      ( Condition* self);
-void       Condition_Wait      ( Condition* self,   Mutex* lock);
+void       Condition_Wait      ( Condition* self, Mutex* lock);
+// TODO: int        Condition_Timed_Wait( Condition* self, Mutex* lock, unsigned timeout_ms);
 void       Condition_Notify    ( Condition* self);
 void       Condition_Notify_All( Condition* self);
 

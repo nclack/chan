@@ -371,7 +371,6 @@ Fifo_Push_Try( Fifo *self_, void **pbuf, size_t sz)
 unsigned int
 Fifo_Push( Fifo *self_, void **pbuf, size_t sz, int expand_on_full)
 { Fifo_ *self = (Fifo_*)self_;
-  unsigned int retval = 0;
   fifo_debug("+ head: %-5d tail: %-5d size: %-5d\r\n",self->head, self->tail, self->head - self->tail);
 
   return_val_if( 0==Fifo_Push_Try(self, pbuf, sz), 0 );
@@ -402,6 +401,12 @@ Fifo_Alloc_Token_Buffer( Fifo *self_ )
 { Fifo_ *self = (Fifo_*)self_;
   return Guarded_Malloc( self->buffer_size_bytes, 
                          "Fifo_Alloc_Token_Buffer" );
+}
+
+void Fifo_Resize_Token_Buffer( Fifo *self_, void **pbuf )
+{ Fifo_ *self = (Fifo_*)self_;
+  Guarded_Realloc( pbuf, self->buffer_size_bytes, 
+                         "Fifo_Realloc_Token_Buffer" );
 }
 
 unsigned char Fifo_Is_Empty(Fifo *self_)

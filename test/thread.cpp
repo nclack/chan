@@ -1,3 +1,6 @@
+// TODO: static initializer tests
+// TODO: timed wait tests
+// TODO:?mutex try lock
 #include "thread.h"
 #include "config.h"
 #include <gtest/gtest.h>

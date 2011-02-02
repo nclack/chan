@@ -19,7 +19,7 @@ include_directories(src)
   find_package(Threads)
 
 macro(show VAR)
-  message("** ${VAR} is ${${VAR}}")
+#message("** ${VAR} is ${${VAR}}")
 endmacro()
 
   set(USE_PTHREAD       ${CMAKE_USE_PTHREADS_INIT})
@@ -59,6 +59,7 @@ endmacro()
     set(HAVE_ATOMIC_INTRINSICS_MSVC FALSE)
   endif()
   check_include_file(unistd.h HAVE_UNISTD)
+  check_include_file(stdint.h HAVE_STDINT)
   configure_file ("${PROJECT_SOURCE_DIR}/config.h.in"
       "${PROJECT_BINARY_DIR}/config.h" )
   include_directories("${PROJECT_BINARY_DIR}")

@@ -4,8 +4,8 @@
 class ChanTest:public ::testing::Test
 { protected:
   void fill()
-  { chan *writer = Chan_Open(full,CHAN_WRITE);
-    while(CHAN_SUCCESS(Chan_Next_Try(full,&buf,sz)));
+  { Chan *writer = Chan_Open(full,CHAN_WRITE);
+    while(CHAN_SUCCESS(Chan_Next_Try(writer,&buf,sz)));
     Chan_Close(writer);
   }
   virtual void SetUp()
@@ -23,24 +23,25 @@ class ChanTest:public ::testing::Test
     Chan_Token_Buffer_Free(buf);
   };
 
-  chan* empty;
-  chan* full;
-  void *buf;
+  Chan* empty;
+  Chan* full;
+  void* buf;
   size_t sz;
 };
 
 TEST_F(ChanTest,RefCounting)
-{ chan *t;
-  EXPECT_EQ(Chan_Get_Ref_Count(empty),1);
+{ Chan *t;
+  EXPECT_EQ(1,Chan_Get_Ref_Count(empty));
   t = Chan_Open(empty,CHAN_READ);
-  EXPECT_EQ(Chan_Get_Ref_Count(t),2);
-  EXPECT_EQ(Chan_Get_Ref_Count(empty),2);
+  EXPECT_EQ(2,Chan_Get_Ref_Count(t));
+  EXPECT_EQ(2,Chan_Get_Ref_Count(empty));
   Chan_Close(t);
-  EXPECT_EQ(Chan_Get_Ref_Count(empty),1);
+  EXPECT_EQ(1,Chan_Get_Ref_Count(empty));
 }
 
 TEST_F(ChanTest,AllocNonPow2)
-{ EXPECT_TRUE(Chan_Alloc(10,10)==(void*)0);
+{ 
+  EXPECT_EQ(0,Chan_Alloc(10,10)); 
 }
 
 TEST_F(ChanTest,InitiallyEmpty)
@@ -57,7 +58,8 @@ TEST_F(ChanTest,Full)
 }
 
 TEST_F(ChanTest,Drain)
-{ chan *reader = Chan_Open(full,CHAN_READ);
+{ Chan *reader = Chan_Open(full,CHAN_READ);
+  EXPECT_TRUE(Chan_Is_Full(full)); 
   while(CHAN_SUCCESS(Chan_Next(reader,&buf,sz)))
   { EXPECT_FALSE(Chan_Is_Full(reader)); 
   }
@@ -67,7 +69,7 @@ TEST_F(ChanTest,Drain)
 }
 
 TEST_F(ChanTest,Fill)
-{ chan *writer = Chan_Open(empty,CHAN_WRITE);
+{ Chan *writer = Chan_Open(empty,CHAN_WRITE);
   while(CHAN_SUCCESS(Chan_Next_Try(writer,&buf,sz)))
   { EXPECT_FALSE(Chan_Is_Empty(writer)); 
   }
@@ -77,26 +79,30 @@ TEST_F(ChanTest,Fill)
 }
 
 TEST_F(ChanTest,PopEmpty)
-{ chan *reader = Chan_Open(full,CHAN_READ); 
+{ Chan *reader = Chan_Open(empty,CHAN_READ); 
   EXPECT_FALSE(CHAN_SUCCESS(Chan_Next(reader,&buf,sz)));
   Chan_Close(reader);
 }
 
 TEST_F(ChanTest,PushFull)
-{ chan *writer = Chan_Open(empty,CHAN_WRITE); 
+{ Chan *writer = Chan_Open(full,CHAN_WRITE); 
   EXPECT_FALSE(CHAN_SUCCESS(Chan_Next_Try(writer,&buf,sz)));
   Chan_Set_Expand_On_Full(writer,0);
-  EXPECT_FALSE(CHAN_SUCCESS(Chan_Next(writer,&buf,sz)));  //no expand - fails
+  EXPECT_FALSE(CHAN_SUCCESS(Chan_Next_Try(writer,&buf,sz)));  //no expand - fails
   Chan_Set_Expand_On_Full(writer,1);
-  EXPECT_TRUE (CHAN_SUCCESS(Chan_Next(writer,&buf,sz)));  //   expand - allocates new memory
+  EXPECT_TRUE (CHAN_SUCCESS(Chan_Next(writer,&buf,sz)));      //   expand - allocates new memory
 }
 
 TEST_F(ChanTest,PeekEmpty)
-{ EXPECT_FALSE(CHAN_SUCCESS(Chan_Peek(empty,&buf,sz))); 
+{ Chan *reader = Chan_Open(empty,CHAN_READ);
+  EXPECT_FALSE(CHAN_SUCCESS(Chan_Peek(reader,&buf,sz)));
+  Chan_Close(reader);
 }
 
 TEST_F(ChanTest,PeekFull)
-{ EXPECT_TRUE(CHAN_SUCCESS(Chan_Peek(full,&buf,sz))); 
+{ Chan *reader = Chan_Open(full,CHAN_READ);
+  EXPECT_TRUE(CHAN_SUCCESS(Chan_Peek(reader,&buf,sz))); 
+  Chan_Close(reader);
 }
 
 
