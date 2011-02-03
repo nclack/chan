@@ -33,6 +33,8 @@
                                           "Channel has invalid read/write mode."ENDL, \
                                           __FILE__,__LINE__)
 
+#define HERE printf("HERE: Line % 5d File: %s\n",__LINE__,__FILE__)
+
 //////////////////////////////////////////////////////////////////////
 //  Utilities  ///////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
@@ -55,6 +57,7 @@ typedef struct
   u32 nwriters;
   u32 expand_on_full;
   u32 abort_wait;
+  u32 flush;
   
   Mutex              lock;
   Condition          notfull;  //predicate: not full  || abort || expand_on_full
@@ -143,8 +146,8 @@ Chan* Chan_Open( Chan *self, ChanMode mode)
   n->mode = mode;
   Mutex_Lock(&n->q->lock);
   switch(mode)
-  { case CHAN_READ:  ++n->q->nreaders; break;
-    case CHAN_WRITE: ++n->q->nwriters; break;
+  { case CHAN_READ:  ++(n->q->nreaders); break;
+    case CHAN_WRITE: ++(n->q->nwriters); n->q->flush=0;break;
     default:
       CHAN_ERR__INVALID_MODE;
       break;
@@ -157,16 +160,23 @@ int Chan_Close( Chan *self_ )
 { chan_t *self = (chan_t*)self_;
   int notify=0;
   Mutex_Lock(&self->q->lock);
-  switch(self->mode)
-  { case CHAN_READ:  Chan_Assert( (--self->q->nreaders)>=0 ); break;
-    case CHAN_WRITE:
-      Chan_Assert( (--self->q->nwriters)>=0 );
-      notify = (self->q->nwriters==0);
-      break;
+  { __chan_t *q = self->q;
+    switch(self->mode)
+    { case CHAN_READ:  
+        Chan_Assert( (--(q->nreaders))>=0 ); break;
+        if(q->nreaders==0)
+          q->flush=0;
+      case CHAN_WRITE:
+        Chan_Assert( (--(q->nwriters))>=0 );
+        notify = (q->nwriters==0);
+        if(notify)
+          q->flush=1;
+        break;
+    }
   }
   Mutex_Unlock(&self->q->lock);
   if(notify)
-    Condition_Notify(&self->q->notempty);
+    Condition_Notify_All(&self->q->notempty);
   decref(&self);
   return SUCCESS;
 }
@@ -180,7 +190,7 @@ void Chan_Set_Expand_On_Full( Chan* self_, int expand_on_full)
 { chan_t *self = (chan_t*)self_;  
   self->q->expand_on_full=expand_on_full;
   if(expand_on_full)
-    Condition_Notify(&self->q->notfull);
+    Condition_Notify_All(&self->q->notfull);
 }
 
 // ----
@@ -188,7 +198,7 @@ void Chan_Set_Expand_On_Full( Chan* self_, int expand_on_full)
 // ----
 
 unsigned int chan_push__locked(__chan_t *q, void **pbuf, size_t sz, unsigned timeout_ms)
-{
+{ 
   while(Fifo_Is_Full(q->fifo) && q->abort_wait==0 && q->expand_on_full==0)
     Condition_Wait(&q->notfull,&q->lock); // TODO: use timed wait?
   if(q->abort_wait)
@@ -198,9 +208,14 @@ unsigned int chan_push__locked(__chan_t *q, void **pbuf, size_t sz, unsigned tim
   return FAILURE;
 }
 
+inline int _pop_bypass_wait(__chan_t *q)
+{ 
+  return q->nwriters==0 &&  q->flush;  
+}
+
 unsigned int chan_pop__locked(__chan_t *q, void **pbuf, size_t sz, unsigned timeout_ms)
 { int starved;
-  while(Fifo_Is_Empty(q->fifo) && q->abort_wait==0 && q->nwriters>0)
+  while(Fifo_Is_Empty(q->fifo) && q->abort_wait==0 && !_pop_bypass_wait(q))
     Condition_Wait(&q->notempty,&q->lock); // TODO: use timed wait?
   starved = Fifo_Is_Empty(q->fifo) && q->nwriters==0;
   if(q->abort_wait || starved)
@@ -253,7 +268,6 @@ unsigned int chan_pop(chan_t *self, void **pbuf, size_t sz, int copy, unsigned t
   { __chan_t *q = self->q;
     if(timeout_ms==0)
       goto_if(Fifo_Is_Empty(q->fifo),NoPop);
-    goto_if(Fifo_Is_Empty(q->fifo) && q->nwriters==0,NoPop) // possibly avoid the resize/copy
     if(copy)
     { Fifo_Resize(q->fifo,sz);
       Fifo_Resize_Token_Buffer(q->fifo,&q->workspace);

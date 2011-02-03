@@ -43,6 +43,7 @@ endmacro()
   set(SOURCES ${SOURCES} "${PROJECT_BINARY_DIR}/config.h")
 
   add_executable(cv app/cv2.c ${SOURCES})
+  add_executable(egchan app/egchan.c ${SOURCES})
 
 ###############################################################################
 #  Config
