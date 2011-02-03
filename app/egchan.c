@@ -66,8 +66,16 @@
 #include <stdio.h>
 #include "thread.h"
 #include "chan.h"
+#include "config.h"
 
-#define NITEMS 10;
+#define NITEMS 10
+
+//inline int mymax(int* pa, int b);
+
+inline 
+void mymax(int* pa, int b)
+{ *pa = (b>(*pa))?b:(*pa);
+}
 
 int stop;
 int item;
@@ -83,9 +91,6 @@ typedef struct _input
 #define GETCHAN(e) (((input_t*)(e))->chan)
 #define GETID(e)   (((input_t*)(e))->id)
 
-inline int max(int* pa, int b)
-{ *pa = (b>*pa)?b:*pa;
-}
 
 void* producer(void* arg)
 { Chan* writer;
@@ -103,7 +108,7 @@ void* producer(void* arg)
     printf("Producer: item %4d [   + ] %d"ENDL, buf[0], id);
 #pragma omp critical
     {
-      max(&pmax,buf[0]);
+      mymax(&pmax,*buf);
     }
     CHAN_SUCCESS(Chan_Next(writer,(void**)&buf,sizeof(int)));
   } while(!stop);
@@ -115,7 +120,7 @@ void* producer(void* arg)
 
 void* consumer(void* arg)
 { Chan* reader;
-  int*  buf,i,id;
+  int*  buf,id;
   
   id = GETID(arg);
   printf("Consumer %d starting\n",id);
@@ -126,12 +131,13 @@ void* consumer(void* arg)
     printf("Consumer: item %4d [ -   ] %d"ENDL, buf[0], id);
 #pragma omp critical
     {
-      max(&cmax,buf[0]);
+      mymax(&cmax,buf[0]);
     }
   } 
   Chan_Token_Buffer_Free(buf);
   Chan_Close(reader);
   printf("Consumer %d exiting"ENDL,id);
+  return NULL;
 }
 
 #define N 9
@@ -169,6 +175,7 @@ int main(int argc,char* argv[])
   }
 
   //usleep(100);
+  Chan_Wait_For_Ref_Count(chan,N+1);
   stop=1;
   printf("*** Main: triggered stop ***"ENDL);
   { int i=0;

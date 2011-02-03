@@ -140,9 +140,10 @@ void* Thread_Join(Thread *self_)
 //  [ ] Use CRITICAL_SECTION if the the SRWLock isn't available
 //      - Although, I think windows' Condition Variables would be missing too
 //////////////////////////////////////////////////////////////////////
-#define M_NATIVE(x) (&(x)->lock)
-#define M_SELF(x)   (&(x)->self_lock)
-#define M_OWNER(x)  ((x)->owner)
+#define M_NATIVE(x)  (&(x)->lock)
+#define M_SELF(x)    (&(x)->self_lock)
+#define M_OWNER(x)   ((x)->owner)
+#define M_SELF_ID(x) (GetThreadId((x)->self_lock))
 
 const Mutex MUTEX_INITIALIZER = {0,0,0};
 

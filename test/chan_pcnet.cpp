@@ -74,7 +74,7 @@
 #define report(...)
 #endif
 
-inline int max(int* pa, int b)
+inline void mymax(int* pa, int b)
 { *pa = (b>*pa)?b:*pa;
 }
 
@@ -98,7 +98,7 @@ class ChanPCNetTest: public ::testing::Test
       Chan_Close(chan);
     }
 
-    void execnet(ThreadProc *procs,int n);
+    void execnet(ThreadProc *procs,size_t n);
 
 };
 
@@ -112,7 +112,7 @@ typedef struct _input
 #define GETTEST(e) (((input_t*)(e))->test) 
 
 #define N 9 // storage space - max number of thread procs required for tests
-void ChanPCNetTest::execnet(ThreadProc *procs,int n)
+void ChanPCNetTest::execnet(ThreadProc *procs,size_t n)
 { 
   Thread*  threads[N];
   input_t  inputs[N];
@@ -131,7 +131,7 @@ void ChanPCNetTest::execnet(ThreadProc *procs,int n)
   //usleep(100);
   Chan_Wait_For_Ref_Count(chan,n+1);
   stop=1;
-  { int i=0;
+  { size_t i=0;
     for(i=0;i<n;++i)
       Thread_Join(threads[i]);
   }
@@ -154,15 +154,15 @@ void* producer(void* arg)
   // top of the loop.  Here, we want to gaurantee each producer
   // instanced generates at least one item.
   do
-  { buf[0] = InterlockedIncrement(&test->item);
+  { buf[0] = InterlockedIncrement((long*)&test->item);
     usleep(1);
     usleep(1);
 #pragma omp critical
     {
-      max(&test->pmax,buf[0]);
+      mymax(&test->pmax,buf[0]);
     }
     if(CHAN_FAILURE(Chan_Next(writer,(void**)&buf,sizeof(int))))
-      report("Producer %d *** push failed for %d"ENDL,id,buf[0]);
+      printf("Producer %d *** push failed for %d"ENDL,id,buf[0]);
      
   } while(!test->stop);
   Chan_Token_Buffer_Free(buf);
@@ -173,7 +173,7 @@ void* producer(void* arg)
 
 void* consumer(void* arg)
 { Chan* reader;
-  int*  buf,i,id;
+  int*  buf,id;
   ChanPCNetTest *test = GETTEST(arg);
   
   id = GETID(arg);
@@ -186,12 +186,13 @@ void* consumer(void* arg)
     usleep(1);
 #pragma omp critical
     {
-      max(&test->cmax,buf[0]);
+      mymax(&test->cmax,buf[0]);
     }
   } 
   Chan_Token_Buffer_Free(buf);
   report("Consumer %d exiting"ENDL,id);
   Chan_Close(reader);
+  return NULL;
 }
 
 TEST_F(ChanPCNetTest,ManyToMany)

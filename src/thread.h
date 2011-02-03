@@ -15,6 +15,7 @@ extern "C"{
 #ifdef USE_PTHREAD
 #include <pthread.h>
 typedef pthread_t       native_thread_t;
+typedef pthread_t       native_thread_id_t;
 typedef pthread_mutex_t native_mutex_t;
 typedef pthread_cond_t  native_cond_t;
 #endif //USE_PTHREAD
@@ -23,6 +24,7 @@ typedef pthread_cond_t  native_cond_t;
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 typedef HANDLE             native_thread_t;
+typedef DWORD              native_thread_id_t;
 typedef SRWLOCK            native_mutex_t;
 typedef CONDITION_VARIABLE native_cond_t;
 #endif //USE_WIN32_THREADS
@@ -30,7 +32,7 @@ typedef CONDITION_VARIABLE native_cond_t;
 typedef struct _mutex_t
 { native_mutex_t  lock; 
   native_mutex_t  self_lock;  
-  native_thread_t owner;
+  native_thread_id_t owner;
 } Mutex;
 
 typedef void          Thread;

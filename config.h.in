@@ -5,7 +5,7 @@
 // Edit config.h.in rather than config.h if any changes must be made.
 //////////////////////////////////////////////////////////////////////
 
-#pragma warning(disable: 4996 95) // MSVC deprication warnings
+#pragma warning(disable: 4996 95 4800) // MSVC deprication warnings
 
 //////////////////////////////////////////////////////////////////////
 // Line endiings
