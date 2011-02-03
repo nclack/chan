@@ -116,18 +116,18 @@ Chan* Chan_Alloc_And_Open( size_t buffer_count, size_t buffer_size_bytes, ChanMo
   return (Chan*)c;
 }
 
+// must be called from inside a lock
 chan_t* incref(chan_t *c)
 { chan_t *n;
-  Mutex_Lock(&c->q->lock);
   ++(c->q->ref_count);
   goto_if_not(n=malloc(sizeof(chan_t)),ErrorAlloc);
   memcpy(n,c,sizeof(chan_t));
-  Mutex_Unlock(&c->q->lock);
+  chan_debug("Refs: %d"ENDL,c->q->ref_count);
   Condition_Notify_All(&c->q->changedRefCount);
   return n;
 ErrorAlloc:
   --(c->q->ref_count);
-  Mutex_Unlock(&c->q->lock);
+  //Mutex_Unlock(&c->q->lock);
   chan_error("malloc() call failed."ENDL);
   return 0;
 }
@@ -139,7 +139,8 @@ void decref(chan_t **pc)
   c=*pc; *pc=0;
   Chan_Assert(c);
   Mutex_Lock(&c->q->lock);
-  remaining = --(c->q->ref_count); 
+  remaining = --(c->q->ref_count);
+  chan_debug("Refs: %d"ENDL,c->q->ref_count);
   Mutex_Unlock(&c->q->lock);
   Chan_Assert(remaining>=0);
   if(remaining==0)
@@ -153,9 +154,9 @@ void decref(chan_t **pc)
 Chan* Chan_Open( Chan *self, ChanMode mode)
 { chan_t *n,*c;
   c = (chan_t*)self;
-  n = incref(c);
+  Mutex_Lock(&c->q->lock);
+  goto_if_not(n = incref(c),ErrorIncref);
   n->mode = mode;
-  Mutex_Lock(&n->q->lock);
   switch(mode)
   { case CHAN_READ:  ++(n->q->nreaders); break;
     case CHAN_WRITE: ++(n->q->nwriters); n->q->flush=0;break;
@@ -163,7 +164,11 @@ Chan* Chan_Open( Chan *self, ChanMode mode)
       CHAN_ERR__INVALID_MODE;
       break;
   }
-  Mutex_Unlock(&n->q->lock);
+ErrorIncref: 
+  //n will be null if there's an error.
+  //The error should already be reported.
+  //This is here just in case the error doesn't cause a panic.
+  Mutex_Unlock(&c->q->lock);
   return (Chan*)n;
 }
 
@@ -203,6 +208,7 @@ void Chan_Wait_For_Ref_Count(Chan* self_,size_t n)
   Mutex_Lock(&q->lock);
   while(q->ref_count!=n)
     Condition_Wait(&q->changedRefCount,&q->lock);
+  chan_debug("WaitForRefCount: target: %d         now: %d"ENDL,n,q->ref_count);
   Mutex_Unlock(&q->lock);
 }
 
@@ -230,7 +236,7 @@ unsigned int chan_push__locked(__chan_t *q, void **pbuf, size_t sz, unsigned tim
 
 inline int _pop_bypass_wait(__chan_t *q)
 { 
-  return q->nwriters==0 &&  q->flush;  
+  return q->nwriters==0 && q->flush;  
 }
 
 unsigned int chan_pop__locked(__chan_t *q, void **pbuf, size_t sz, unsigned timeout_ms)

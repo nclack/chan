@@ -35,6 +35,8 @@ endmacro()
 #  Targets
 ###############################################################################
 
+  find_package(OpenMP)
+
   file(GLOB SOURCES
     src/*.h
     src/*.c
@@ -44,6 +46,13 @@ endmacro()
 
   add_executable(cv app/cv2.c ${SOURCES})
   add_executable(egchan app/egchan.c ${SOURCES})
+  set_target_properties(
+    cv
+    egchan
+    PROPERTIES
+      COMPILE_FLAGS ${OpenMP_C_FLAGS}
+      LINK_FLAGS    ${OpenMP_C_FLAGS}
+  )
 
 ###############################################################################
 #  Config

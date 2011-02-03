@@ -1,3 +1,4 @@
+cmake_minimum_required(VERSION 2.8)
 #
 # INPUT VARIABLES
 # ---------------
@@ -6,7 +7,6 @@
 #
 
 #Some stuff to let this CMakeLists.txt stand alone, if needed
-cmake_minimum_required(VERSION 2.8)
 enable_testing(true)
 
 #find gtest
@@ -19,6 +19,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 # Config
 #
 
+find_package(OpenMP)
 
 ##
 # Add tests
@@ -41,5 +42,11 @@ add_executable(alltests
 )
 target_link_libraries(alltests
  ${GTEST_BOTH_LIBRARIES}
+)
+set_target_properties(
+  alltests
+  PROPERTIES
+    COMPILE_FLAGS ${OpenMP_C_FLAGS}
+    LINK_FLAGS    ${OpenMP_C_FLAGS}
 )
 gtest_add_tests(alltests " " ${PRIMARY_TEST_SOURCES})

@@ -68,6 +68,12 @@
 #include "chan.h"
 
 
+#if 0
+#define report(...) printf(__VA_ARGS__)
+#else
+#define report(...)
+#endif
+
 inline int max(int* pa, int b)
 { *pa = (b>*pa)?b:*pa;
 }
@@ -80,13 +86,16 @@ class ChanPCNetTest: public ::testing::Test
 
     int pmax;
     int cmax;
+    Chan* chan;
   protected:
     virtual void SetUp()
     { stop=item=pmax=cmax=0;
+      chan = Chan_Alloc(16,sizeof(int));
     }
 
     virtual void TearDown()
     {
+      Chan_Close(chan);
     }
 
     void execnet(ThreadProc *procs,int n);
@@ -104,11 +113,9 @@ typedef struct _input
 
 #define N 9 // storage space - max number of thread procs required for tests
 void ChanPCNetTest::execnet(ThreadProc *procs,int n)
-{ Chan* chan;
+{ 
   Thread*  threads[N];
   input_t  inputs[N];
-
-  chan = Chan_Alloc(16,sizeof(int));
 
   stop=0;
   { size_t i;
@@ -128,7 +135,6 @@ void ChanPCNetTest::execnet(ThreadProc *procs,int n)
     for(i=0;i<n;++i)
       Thread_Join(threads[i]);
   }
-  Chan_Close(chan);
 }
 
 void* producer(void* arg)
@@ -139,7 +145,14 @@ void* producer(void* arg)
   
   id = GETID(arg);
   writer = Chan_Open(GETCHAN(arg),CHAN_WRITE);
+  report("Producer %d START"ENDL,id);
   buf = (int*)Chan_Token_Buffer_Alloc(writer);
+  // Leave this as a do{}while(); loop to be sensitive
+  // to early exit of consumer threads.
+  //
+  // In normal use you'd probably want to test for stop at the 
+  // top of the loop.  Here, we want to gaurantee each producer
+  // instanced generates at least one item.
   do
   { buf[0] = InterlockedIncrement(&test->item);
     usleep(1);
@@ -148,9 +161,12 @@ void* producer(void* arg)
     {
       max(&test->pmax,buf[0]);
     }
-    CHAN_SUCCESS(Chan_Next(writer,(void**)&buf,sizeof(int)));
+    if(CHAN_FAILURE(Chan_Next(writer,(void**)&buf,sizeof(int))))
+      report("Producer %d *** push failed for %d"ENDL,id,buf[0]);
+     
   } while(!test->stop);
   Chan_Token_Buffer_Free(buf);
+  report("Producer %d exiting"ENDL,id);
   Chan_Close(writer);
   return NULL;
 }
@@ -162,6 +178,7 @@ void* consumer(void* arg)
   
   id = GETID(arg);
   reader = Chan_Open(GETCHAN(arg),CHAN_READ);
+  report("Consumer %d START"ENDL,id);
   buf = (int*)Chan_Token_Buffer_Alloc(reader);
   while(CHAN_SUCCESS(Chan_Next(reader,(void**)&buf,sizeof(int))))
   { 
@@ -173,6 +190,7 @@ void* consumer(void* arg)
     }
   } 
   Chan_Token_Buffer_Free(buf);
+  report("Consumer %d exiting"ENDL,id);
   Chan_Close(reader);
 }
 
