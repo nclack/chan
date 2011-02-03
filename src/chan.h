@@ -20,6 +20,7 @@ Chan  *Chan_Open               ( Chan *self, ChanMode mode);                    
 int    Chan_Close              ( Chan *self );                                                  // does ref counting
 
 unsigned Chan_Get_Ref_Count      ( Chan* self);
+void     Chan_Wait_For_Ref_Count ( Chan* self, size_t n);
 void     Chan_Set_Expand_On_Full ( Chan* self, int  expand_on_full);                           // default: no expand
 
 // ----

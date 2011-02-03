@@ -79,7 +79,9 @@ TEST_F(ChanTest,Fill)
 }
 
 TEST_F(ChanTest,PopEmpty)
-{ Chan *reader = Chan_Open(empty,CHAN_READ); 
+{ Chan *writer = Chan_Open(empty,CHAN_WRITE);  
+  Chan *reader = Chan_Open(empty,CHAN_READ); 
+  Chan_Close(writer); // should cause chan to flush to avoid deadlock
   EXPECT_FALSE(CHAN_SUCCESS(Chan_Next(reader,&buf,sz)));
   Chan_Close(reader);
 }

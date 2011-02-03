@@ -62,6 +62,7 @@ typedef struct
   Mutex              lock;
   Condition          notfull;  //predicate: not full  || abort || expand_on_full
   Condition          notempty; //predicate: not empty || abort || no writers 
+  Condition          changedRefCount; //predicate: refcount != n
 
   void              *workspace;  // Token buffer used for copy operations.
 } __chan_t;
@@ -81,6 +82,7 @@ __chan_t* chan_alloc(size_t buffer_count, size_t buffer_size_bytes)
     c->lock = MUTEX_INITIALIZER;
     Condition_Initialize(&c->notfull);
     Condition_Initialize(&c->notempty);
+    Condition_Initialize(&c->changedRefCount);
     c->workspace = Fifo_Alloc_Token_Buffer(c->fifo);
     c->ref_count=1;
   }
@@ -116,12 +118,16 @@ Chan* Chan_Alloc_And_Open( size_t buffer_count, size_t buffer_size_bytes, ChanMo
 
 chan_t* incref(chan_t *c)
 { chan_t *n;
-  InterlockedIncrement(&c->q->ref_count);
+  Mutex_Lock(&c->q->lock);
+  ++(c->q->ref_count);
   goto_if_not(n=malloc(sizeof(chan_t)),ErrorAlloc);
   memcpy(n,c,sizeof(chan_t));
+  Mutex_Unlock(&c->q->lock);
+  Condition_Notify_All(&c->q->changedRefCount);
   return n;
 ErrorAlloc:
-  InterlockedDecrement(&c->q->ref_count);
+  --(c->q->ref_count);
+  Mutex_Unlock(&c->q->lock);
   chan_error("malloc() call failed."ENDL);
   return 0;
 }
@@ -132,10 +138,15 @@ void decref(chan_t **pc)
   Chan_Assert(pc);
   c=*pc; *pc=0;
   Chan_Assert(c);
-  remaining = InterlockedDecrement(&c->q->ref_count); 
+  Mutex_Lock(&c->q->lock);
+  remaining = --(c->q->ref_count); 
+  Mutex_Unlock(&c->q->lock);
   Chan_Assert(remaining>=0);
   if(remaining==0)
     chan_destroy(c->q);
+  else
+    Condition_Notify_All(&c->q->changedRefCount);
+    
   free(c);
 }
 
@@ -184,6 +195,15 @@ int Chan_Close( Chan *self_ )
 unsigned Chan_Get_Ref_Count(Chan* self_)
 { chan_t *self = (chan_t*)self_; 
   return self->q->ref_count;
+}
+
+void Chan_Wait_For_Ref_Count(Chan* self_,size_t n)
+{ chan_t *self = (chan_t*)self_; 
+  __chan_t *q = self->q;
+  Mutex_Lock(&q->lock);
+  while(q->ref_count!=n)
+    Condition_Wait(&q->changedRefCount,&q->lock);
+  Mutex_Unlock(&q->lock);
 }
 
 void Chan_Set_Expand_On_Full( Chan* self_, int expand_on_full)
