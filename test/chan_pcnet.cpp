@@ -1,39 +1,16 @@
+//NOTES:
+// - looks like there's a slow memory leak (windows only?) in repeated tests.
+//   Don't really know why.
+
 //TODO: different networks
-//FIXME: if consumer starts first, then loop dies
-//       Could think of something like fall through happens when a flag is set,
-//             otherwise waits ... the "flush" flag
-//       - did this:     
-//         0. flush flag is false
-//         1. when last producer closes, flush flags gets set to true
-//         2. when last consumer closes, flush flag is reset to false.
-//
-//         Still have a problem in this situation
-//
-//           1. consumer starts
-//           2. producer starts
-//           3. producer closes
-//           4. consumer closes - it emptied the queue, saw it was ok to not
-//                                wait, and exited
-//           5. producer starts
-//           6. producer closes
-//
-//           It didn't wait for _all_ the producers to start.  The trouble is 
-//           that there's an indefinte wait between thread start and the
-//           Chan_Open(_,CHAN_WRITE) call.  Pre-opening would solve this 
-//           problem, but seems a bit awkward.
-//
-//           There needs to be sufficient time for all threads to open
-//           the channels or there needs to be a wait mechanism to signal
-//           that all the expected channels have been opened.
-//
-//           How would that look:
-//
-//             wait for reader count (q,n)
-//             wait for writer count (q,n)
-//
-//                impl by waiting on a condition triggered each time the count
-//                changes.
-//
+//TODO: topologically ordered shutdown test [HARD]
+//      [ ] generate random dags
+//      [ ] assemble random dags?  this is a little wierd bc chan's are
+//          hyperedges - directed, but there's some degeneracy depending on the
+//          dag description
+//      [ ] record shutdown order
+//      [ ] computed expected shutdown order based on dag
+//      [ ] ensure topological equivilance
 
 /* Notes on testing
  *
@@ -79,40 +56,50 @@ inline void mymax(int* pa, int b)
 }
 
 
+#define N 9 // storage space - max number of thread procs required for tests
 class ChanPCNetTest: public ::testing::Test
 { public:     
     int stop;
     int item;
 
     int pmax;
+    int ppmax;
     int cmax;
     Chan* chan;
+    Chan* chans[N];
   protected:
     virtual void SetUp()
-    { stop=item=pmax=cmax=0;
-      chan = Chan_Alloc(16,sizeof(int));
+    { stop=item=pmax=ppmax=cmax=0;
+      chan = Chan_Alloc(2,sizeof(int));
+      for(int i=0;i<N;++i)
+        chans[i] = Chan_Alloc(2,sizeof(int));
     }
 
     virtual void TearDown()
     {
       Chan_Close(chan);
+      for(int i=0;i<N;++i)
+        Chan_Close(chans[i]);
     }
 
-    void execnet(ThreadProc *procs,size_t n);
+    void exec_one_chan(ThreadProc *procs,size_t n);
+    void execnet(int *graph,int nrows);
 
 };
 
 typedef struct _input
-{ int   id;
-  Chan *chan;
+{ int            id;
+  Chan          *chan;
   ChanPCNetTest *test;
+  struct _input *next;
 } input_t;
-#define GETCHAN(e) (((input_t*)(e))->chan)
-#define GETID(e)   (((input_t*)(e))->id)
-#define GETTEST(e) (((input_t*)(e))->test) 
+#define GETCHAN(e)     (((input_t*)(e))->chan)
+#define GETNEXT(e)     (((input_t*)(e))->next) 
+#define GETNEXTCHAN(e) GETCHAN(GETNEXT(e))
+#define GETID(e)       (((input_t*)(e))->id)
+#define GETTEST(e)     (((input_t*)(e))->test) 
 
-#define N 9 // storage space - max number of thread procs required for tests
-void ChanPCNetTest::execnet(ThreadProc *procs,size_t n)
+void ChanPCNetTest::exec_one_chan(ThreadProc *procs,size_t n)
 { 
   Thread*  threads[N];
   input_t  inputs[N];
@@ -137,6 +124,70 @@ void ChanPCNetTest::execnet(ThreadProc *procs,size_t n)
   }
 }
 
+void* producer (void* arg);
+void* consumer (void* arg);
+void* processor(void* arg);
+
+void ChanPCNetTest::execnet(int *graph, int nrows)
+{ 
+  Thread*  threads[N];
+  ThreadProc procs[N];
+  input_t  inputs[N];
+  int w = nrows;
+  int sources[N];
+  ASSERT_TRUE(nrows<=N);
+  memset(sources,0,N*sizeof(int));
+
+  stop=0;
+  { size_t i;
+    for(i=0;i<nrows;++i)
+    { int nout,nin;
+      int j;
+      nout=nin=0;
+      //only check upper triangle
+      //Count ins and outs
+      for(j=0;j<nrows;++j){ nout+=graph[i*w+j]; nin +=graph[j*w+i]; }
+      ASSERT_FALSE(nout==0 && nin==0);                              // all nodes must connect to something
+      ASSERT_FALSE(nout>1);                                         // nodes can have at most one output  :(
+      inputs[i].id   = i;
+      inputs[i].test = this;
+      if(nout==0)                                                   // sink
+      { inputs[i].chan = chans[i];
+        inputs[i].next = NULL;
+        procs[i] = consumer;
+      } else if(nin==0)                                             // source
+      { for(j=0;j<nrows;++j)
+          if(graph[i*w+j])
+          { inputs[i].chan = chans[j];
+            ++sources[j];
+          }
+        inputs[i].next=NULL;
+        procs[i] = producer;
+      } else                                                        // intermediate
+      { inputs[i].chan = chans[i];
+        for(j=0;j<nrows;++j)
+          if(graph[i*w+j])
+          { inputs[i].next = inputs+j;
+            ++sources[j]; //because input[i].next = input[j].chan = chans[j]
+          }
+        procs[i]=processor;
+      }
+    }
+    for(i=0;i<nrows;++i)
+      threads[i] = Thread_Alloc(procs[i],(void*)(inputs+i));
+  }
+
+  for(size_t i=0;i<nrows;++i)
+    if(sources[i])
+      Chan_Wait_For_Writer_Count(chans[i],sources[i]);
+  report(" *** STOP *** "ENDL);
+  stop=1;
+  { size_t i=0;
+    for(i=0;i<nrows;++i)
+      Thread_Join(threads[i]);
+  }
+}
+
 void* producer(void* arg)
 { Chan* writer;
   int*  buf;
@@ -145,7 +196,7 @@ void* producer(void* arg)
   
   id = GETID(arg);
   writer = Chan_Open(GETCHAN(arg),CHAN_WRITE);
-  report("Producer %d START"ENDL,id);
+  report("Producer  %d START"ENDL,id);
   buf = (int*)Chan_Token_Buffer_Alloc(writer);
   // Leave this as a do{}while(); loop to be sensitive
   // to early exit of consumer threads.
@@ -162,11 +213,11 @@ void* producer(void* arg)
       mymax(&test->pmax,buf[0]);
     }
     if(CHAN_FAILURE(Chan_Next(writer,(void**)&buf,sizeof(int))))
-      printf("Producer %d *** push failed for %d"ENDL,id,buf[0]);
+      printf("Producer  %d *** push failed for %d"ENDL,id,buf[0]);
      
   } while(!test->stop);
   Chan_Token_Buffer_Free(buf);
-  report("Producer %d exiting"ENDL,id);
+  report("Producer  %d exiting"ENDL,id);
   Chan_Close(writer);
   return NULL;
 }
@@ -178,7 +229,7 @@ void* consumer(void* arg)
   
   id = GETID(arg);
   reader = Chan_Open(GETCHAN(arg),CHAN_READ);
-  report("Consumer %d START"ENDL,id);
+  report("Consumer  %d START"ENDL,id);
   buf = (int*)Chan_Token_Buffer_Alloc(reader);
   while(CHAN_SUCCESS(Chan_Next(reader,(void**)&buf,sizeof(int))))
   { 
@@ -190,7 +241,35 @@ void* consumer(void* arg)
     }
   } 
   Chan_Token_Buffer_Free(buf);
-  report("Consumer %d exiting"ENDL,id);
+  report("Consumer  %d exiting"ENDL,id);
+  Chan_Close(reader);
+  return NULL;
+}
+
+void* processor(void* arg)
+{ Chan *reader,*writer;
+  int  *buf,id;
+  ChanPCNetTest *test = GETTEST(arg);
+  
+  id = GETID(arg);
+  reader = Chan_Open(GETCHAN(arg),CHAN_READ);
+  writer = Chan_Open(GETNEXTCHAN(arg),CHAN_WRITE);
+  report("Processor %d START"ENDL,id);
+  buf = (int*)Chan_Token_Buffer_Alloc(reader);
+  while(CHAN_SUCCESS(Chan_Next(reader,(void**)&buf,sizeof(int))))
+  { 
+    usleep(1);
+    usleep(1);
+#pragma omp critical
+    {
+      mymax(&test->ppmax,buf[0]);
+    }
+    if(CHAN_FAILURE(Chan_Next(writer,(void**)&buf,sizeof(int))))
+      printf("Processor %d *** push failed for %d"ENDL,id,buf[0]);
+  } 
+  Chan_Token_Buffer_Free(buf);
+  report("Processor %d exiting"ENDL,id);
+  Chan_Close(writer);
   Chan_Close(reader);
   return NULL;
 }
@@ -208,7 +287,7 @@ TEST_F(ChanPCNetTest,ManyToMany)
     producer,
     producer,
   };
-  execnet(procs,sizeof(procs)/sizeof(ThreadProc));
+  exec_one_chan(procs,sizeof(procs)/sizeof(ThreadProc));
   EXPECT_EQ(pmax,cmax);
 }
 
@@ -218,6 +297,45 @@ TEST_F(ChanPCNetTest,OneToOne)
     consumer,
     producer,
   };
-  execnet(procs,sizeof(procs)/sizeof(ThreadProc));
+  exec_one_chan(procs,sizeof(procs)/sizeof(ThreadProc));
   EXPECT_EQ(pmax,cmax);
+}
+
+TEST_F(ChanPCNetTest,Chain)
+{ 
+  int net[] =
+  { //0 1 2 3 4 5 6 7 8
+      0,1,0,0,0,0,0,0,0, // 0
+      0,0,1,0,0,0,0,0,0, // 1
+      0,0,0,1,0,0,0,0,0, // 2
+      0,0,0,0,1,0,0,0,0, // 3
+      0,0,0,0,0,1,0,0,0, // 4
+      0,0,0,0,0,0,1,0,0, // 5
+      0,0,0,0,0,0,0,1,0, // 6
+      0,0,0,0,0,0,0,0,1, // 7
+      0,0,0,0,0,0,0,0,0, // 8
+  };
+  execnet(net,9);
+  EXPECT_EQ(pmax,cmax);
+  EXPECT_EQ(pmax,ppmax);
+}
+
+TEST_F(ChanPCNetTest,Tree)
+{ 
+  int net[] =
+  { //0 1 2 3 4 5 6 7 8
+      0,1,0,0,0,0,0,0,0, // 0
+      0,0,0,1,0,0,0,0,0, // 1 
+      0,0,0,1,0,0,0,0,0, // 2
+      0,0,0,0,0,0,1,0,0, // 3
+      0,0,0,0,0,0,1,0,0, // 4
+      0,0,0,0,0,0,1,0,0, // 5
+      0,0,0,0,0,0,0,1,0, // 6
+      0,0,0,0,0,0,0,0,1, // 7
+      0,0,0,0,0,0,0,0,0, // 8 
+  };//*   *   * *
+  // topological order should be (0,2,4,5),1,3,6,7,8
+  execnet(net,9);
+  EXPECT_EQ(pmax,cmax);
+  EXPECT_EQ(pmax,ppmax);
 }

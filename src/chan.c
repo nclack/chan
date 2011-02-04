@@ -63,6 +63,7 @@ typedef struct
   Condition          notfull;  //predicate: not full  || abort || expand_on_full
   Condition          notempty; //predicate: not empty || abort || no writers 
   Condition          changedRefCount; //predicate: refcount != n
+  Condition          haveWriter; //predicate: nwriters>0
 
   void              *workspace;  // Token buffer used for copy operations.
 } __chan_t;
@@ -83,6 +84,7 @@ __chan_t* chan_alloc(size_t buffer_count, size_t buffer_size_bytes)
     Condition_Initialize(&c->notfull);
     Condition_Initialize(&c->notempty);
     Condition_Initialize(&c->changedRefCount);
+    Condition_Initialize(&c->haveWriter);
     c->workspace = Fifo_Alloc_Token_Buffer(c->fifo);
     c->ref_count=1;
   }
@@ -159,7 +161,11 @@ Chan* Chan_Open( Chan *self, ChanMode mode)
   n->mode = mode;
   switch(mode)
   { case CHAN_READ:  ++(n->q->nreaders); break;
-    case CHAN_WRITE: ++(n->q->nwriters); n->q->flush=0;break;
+    case CHAN_WRITE: 
+      ++(n->q->nwriters);
+      n->q->flush=0;
+      Condition_Notify_All(&n->q->haveWriter);
+      break;
     default:
       CHAN_ERR__INVALID_MODE;
       break;
@@ -184,6 +190,7 @@ int Chan_Close( Chan *self_ )
           q->flush=0;
       case CHAN_WRITE:
         Chan_Assert( (--(q->nwriters))>=0 );
+        Condition_Notify_All(&q->haveWriter);
         notify = (q->nwriters==0);
         if(notify)
           q->flush=1;
@@ -209,6 +216,16 @@ void Chan_Wait_For_Ref_Count(Chan* self_,size_t n)
   while(q->ref_count!=n)
     Condition_Wait(&q->changedRefCount,&q->lock);
   chan_debug("WaitForRefCount: target: %d         now: %d"ENDL,n,q->ref_count);
+  Mutex_Unlock(&q->lock);
+}
+
+void Chan_Wait_For_Writer_Count(Chan* self_,size_t n)
+{ chan_t *self = (chan_t*)self_; 
+  __chan_t *q = self->q;
+  Mutex_Lock(&q->lock);
+  while(q->nwriters!=n)
+    Condition_Wait(&q->haveWriter,&q->lock);
+  chan_debug("WaitForWriter - writer count: %d"ENDL,n,q->nwriters);
   Mutex_Unlock(&q->lock);
 }
 
