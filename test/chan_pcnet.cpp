@@ -339,3 +339,25 @@ TEST_F(ChanPCNetTest,Tree)
   EXPECT_EQ(pmax,cmax);
   EXPECT_EQ(pmax,ppmax);
 }
+
+void *apc(void *q_)
+{ typedef struct _T { int a,b,c; } T;
+  Chan *q = (Chan*) q_;
+  Chan *reader = Chan_Open(q,CHAN_READ);
+  T v;
+  EXPECT_TRUE(CHAN_SUCCESS(Chan_Next_Copy_Try(reader,&v,sizeof(T)) ));
+  return (void*)(v.a*v.b*v.c);
+}
+
+TEST_F(ChanPCNetTest,AsynchronousProcedureCallPattern)
+{ typedef struct _T { int a,b,c; } T;
+  T arg = {1,2,3};
+  Chan *q = Chan_Alloc(2,sizeof(T));
+  Chan_Set_Expand_On_Full(q,1);
+  Chan *writer = Chan_Open(q,CHAN_WRITE);
+  Chan_Next_Copy(writer,&arg,sizeof(T));
+  Chan_Close(writer);
+
+  Thread *t = Thread_Alloc(apc,(void*)q);
+  EXPECT_EQ(6,(size_t) Thread_Join(t));
+}
