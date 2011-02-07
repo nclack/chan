@@ -45,19 +45,19 @@
 #define IS_POW2(v)         (!((v) & ((v) - 1)) && (v) )
 #define MOD_UNSIGNED_POW2(n,d)   ( (n) & ((d)-1) )
 
-void *Guarded_Malloc( size_t nelem, const char *msg )
+void *Fifo_Malloc( size_t nelem, const char *msg )
 { void *item = malloc( nelem );
   if( !item )
     fifo_error("Could not allocate memory.\n%s\n",msg);
   return item;
 }
-void *Guarded_Calloc( size_t nelem, size_t bytes_per_elem, const char *msg )
+void *Fifo_Calloc( size_t nelem, size_t bytes_per_elem, const char *msg )
 { void *item = calloc( nelem, bytes_per_elem );
   if( !item )
     fifo_error("Could not allocate memory.\n%s\n",msg);
   return item;
 }
-void Guarded_Realloc( void **item, size_t nelem, const char *msg )
+void Fifo_Realloc( void **item, size_t nelem, const char *msg )
 { void *it = *item;
   Fifo_Assert(item);
   if( !it )
@@ -74,7 +74,7 @@ void RequestStorage( void** array, size_t *nelem, size_t request, size_t bytes_p
   if( n <= *nelem ) return;
   *nelem = (size_t) (1.25 * n + 64 );
   DEBUG_REQUEST_STORAGE;
-  Guarded_Realloc( array, *nelem * bytes_per_elem, "Resize" );
+  Fifo_Realloc( array, *nelem * bytes_per_elem, "Resize" );
 }
 
 inline size_t _next_pow2_size_t(size_t v)
@@ -95,7 +95,7 @@ void RequestStorageLog2( void** array, size_t *nelem, size_t request, size_t byt
   if( n <= *nelem ) return;
   *nelem = _next_pow2_size_t(n);
   DEBUG_REQUEST_STORAGE;
-  Guarded_Realloc( array, *nelem * bytes_per_elem, "Resize" );
+  Fifo_Realloc( array, *nelem * bytes_per_elem, "Resize" );
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -119,8 +119,8 @@ void          vector_PVOID_dump    ( vector_PVOID *self, char* filename );
 
 vector_PVOID *vector_PVOID_alloc   ( size_t nelem )                                            
 { size_t bytes_per_elem = sizeof( PVOID );                                                          
-  vector_PVOID *self   = (vector_PVOID*) Guarded_Malloc( sizeof(vector_PVOID), "vector_init" ); 
-  self->contents        = (PVOID*) Guarded_Calloc( nelem, bytes_per_elem, "vector_init");           
+  vector_PVOID *self   = (vector_PVOID*) Fifo_Malloc( sizeof(vector_PVOID), "vector_init" ); 
+  self->contents        = (PVOID*) Fifo_Calloc( nelem, bytes_per_elem, "vector_init");           
   self->bytes_per_elem  = bytes_per_elem; 
   self->count           = 0;              
   self->nelem           = nelem;          
@@ -185,7 +185,7 @@ typedef struct _ring_fifo
 
 Fifo*
 Fifo_Alloc(size_t buffer_count, size_t buffer_size_bytes )
-{ Fifo_ *self = (Fifo_ *)Guarded_Malloc( sizeof(Fifo_), "Fifo_Alloc" );
+{ Fifo_ *self = (Fifo_ *)Fifo_Malloc( sizeof(Fifo_), "Fifo_Alloc" );
   
   Fifo_Assert( IS_POW2( buffer_count ) );
   return_val_if(!IS_POW2(buffer_count),NULL);
@@ -199,7 +199,7 @@ Fifo_Alloc(size_t buffer_count, size_t buffer_size_bytes )
     PVOID *cur = r->contents + r->nelem,
           *beg = r->contents;
     while( cur-- > beg )
-      *cur = Guarded_Malloc( buffer_size_bytes, "Fifo_Alloc: Allocating buffers" );
+      *cur = Fifo_Malloc( buffer_size_bytes, "Fifo_Alloc: Allocating buffers" );
   }
 
 #ifdef DEBUG_RINGFIFO_ALLOC
@@ -264,7 +264,7 @@ Fifo_Expand( Fifo *self_ )
       cur += old;
     }
     while( cur-- > beg )
-      *cur = Guarded_Malloc( buffer_size_bytes, 
+      *cur = Fifo_Malloc( buffer_size_bytes, 
                              "Fifo_Expand: Allocating new buffers" );
   }
 }
@@ -399,13 +399,13 @@ size_t Fifo_Buffer_Size_Bytes(Fifo *self)
 void*
 Fifo_Alloc_Token_Buffer( Fifo *self_ )
 { Fifo_ *self = (Fifo_*)self_;
-  return Guarded_Malloc( self->buffer_size_bytes, 
+  return Fifo_Malloc( self->buffer_size_bytes, 
                          "Fifo_Alloc_Token_Buffer" );
 }
 
 void Fifo_Resize_Token_Buffer( Fifo *self_, void **pbuf )
 { Fifo_ *self = (Fifo_*)self_;
-  Guarded_Realloc( pbuf, self->buffer_size_bytes, 
+  Fifo_Realloc( pbuf, self->buffer_size_bytes, 
                          "Fifo_Realloc_Token_Buffer" );
 }
 
