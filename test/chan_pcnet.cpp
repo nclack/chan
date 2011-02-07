@@ -139,7 +139,7 @@ void ChanPCNetTest::execnet(int *graph, int nrows)
   memset(sources,0,N*sizeof(int));
 
   stop=0;
-  { size_t i;
+  { int i;
     for(i=0;i<nrows;++i)
     { int nout,nin;
       int j;
@@ -177,12 +177,12 @@ void ChanPCNetTest::execnet(int *graph, int nrows)
       threads[i] = Thread_Alloc(procs[i],(void*)(inputs+i));
   }
 
-  for(size_t i=0;i<nrows;++i)
+  for(int i=0;i<nrows;++i)
     if(sources[i])
       Chan_Wait_For_Writer_Count(chans[i],sources[i]);
   report(" *** STOP *** "ENDL);
   stop=1;
-  { size_t i=0;
+  { int i=0;
     for(i=0;i<nrows;++i)
       Thread_Join(threads[i]);
   }
