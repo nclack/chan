@@ -15,7 +15,6 @@ typedef enum _chan_mode
 } ChanMode;
 
 Chan  *Chan_Alloc              ( size_t buffer_count, size_t buffer_size_bytes);
-Chan  *Chan_Alloc_And_Open     ( size_t buffer_count, size_t buffer_size_bytes, ChanMode mode);
 Chan  *Chan_Open               ( Chan *self, ChanMode mode);                                    // does ref counting and access type
 int    Chan_Close              ( Chan *self );                                                  // does ref counting
 

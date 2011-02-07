@@ -8,11 +8,14 @@
 #define SUCCESS (0) 
 #define FAILURE (1)
 
+//#define DEBUG_CHAN
+
 //////////////////////////////////////////////////////////////////////
 //  Logging    ///////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 #define chan_warning(...) printf(__VA_ARGS__);
 #define chan_error(...)   do{fprintf(stderr,__VA_ARGS__);exit(-1);}while(0)
+
 #ifdef DEBUG_CHAN
 #define chan_debug(...)   printf(__VA_ARGS__)
 #else
@@ -20,7 +23,7 @@
 #endif
 
 // debug
-#if 1
+#ifdef DEBUG_CHAN
 #define Chan_Assert(expression) \
   if(!(expression))\
     chan_error("Assertion failed: %s\n\tIn %s (line: %u)\n", #expression, __FILE__ , __LINE__ )
@@ -110,14 +113,6 @@ Chan* Chan_Alloc( size_t buffer_count, size_t buffer_size_bytes)
   return (Chan*)c;
 }
 
-Chan* Chan_Alloc_And_Open( size_t buffer_count, size_t buffer_size_bytes, ChanMode mode)
-{ chan_t *c; 
-  Chan_Assert(c=malloc(sizeof(chan_t)));
-  c->q = chan_alloc(buffer_count,buffer_size_bytes);
-  c->mode = mode;
-  return (Chan*)c;
-}
-
 // must be called from inside a lock
 chan_t* incref(chan_t *c)
 { chan_t *n;
@@ -156,6 +151,7 @@ void decref(chan_t **pc)
 Chan* Chan_Open( Chan *self, ChanMode mode)
 { chan_t *n,*c;
   c = (chan_t*)self;
+  Chan_Assert( Chan_Get_Ref_Count(self)>0 );
   Mutex_Lock(&c->q->lock);
   goto_if_not(n = incref(c),ErrorIncref);
   n->mode = mode;
@@ -215,7 +211,7 @@ void Chan_Wait_For_Ref_Count(Chan* self_,size_t n)
   Mutex_Lock(&q->lock);
   while(q->ref_count!=n)
     Condition_Wait(&q->changedRefCount,&q->lock);
-  chan_debug("WaitForRefCount: target: %d         now: %d"ENDL,n,q->ref_count);
+  chan_debug("WaitForRefCount: target: %zu        now: %u"ENDL,n,q->ref_count);
   Mutex_Unlock(&q->lock);
 }
 
@@ -225,7 +221,7 @@ void Chan_Wait_For_Writer_Count(Chan* self_,size_t n)
   Mutex_Lock(&q->lock);
   while(q->nwriters!=n)
     Condition_Wait(&q->haveWriter,&q->lock);
-  chan_debug("WaitForWriter - writer count: %d"ENDL,n,q->nwriters);
+  chan_debug("WaitForWriter - writer count: %d"ENDL,q->nwriters);
   Mutex_Unlock(&q->lock);
 }
 

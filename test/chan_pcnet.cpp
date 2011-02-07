@@ -352,12 +352,16 @@ void *apc(void *q_)
 TEST_F(ChanPCNetTest,AsynchronousProcedureCallPattern)
 { typedef struct _T { int a,b,c; } T;
   T arg = {1,2,3};
-  Chan *q = Chan_Alloc(2,sizeof(T));
-  Chan_Set_Expand_On_Full(q,1);
-  Chan *writer = Chan_Open(q,CHAN_WRITE);
+  Chan *q,*writer;
+
+  writer = Chan_Open(
+      q=Chan_Alloc(2,sizeof(T)),
+      CHAN_WRITE);
+
   Chan_Next_Copy(writer,&arg,sizeof(T));
   Chan_Close(writer);
 
   Thread *t = Thread_Alloc(apc,(void*)q);
   EXPECT_EQ(6,(size_t) Thread_Join(t));
+  Chan_Close(q);
 }
