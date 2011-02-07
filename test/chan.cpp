@@ -29,6 +29,16 @@ class ChanTest:public ::testing::Test
   size_t sz;
 };
 
+TEST_F(ChanTest,BufferCount)
+{ EXPECT_EQ(16,Chan_Buffer_Count(empty));
+  EXPECT_EQ(16,Chan_Buffer_Count(full )); 
+}
+
+TEST_F(ChanTest,BufferSize)
+{ EXPECT_EQ(10,Chan_Buffer_Size_Bytes(empty));
+  EXPECT_EQ(10,Chan_Buffer_Size_Bytes(full )); 
+}
+
 TEST_F(ChanTest,RefCounting)
 { Chan *t;
   EXPECT_EQ(1,Chan_Get_Ref_Count(empty));

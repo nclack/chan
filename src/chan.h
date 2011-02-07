@@ -70,7 +70,8 @@ inline void Chan_Resize                     ( Chan *self, size_t nbytes);
 void*       Chan_Token_Buffer_Alloc         ( Chan *self );
 void*       Chan_Token_Buffer_Alloc_And_Copy( Chan *self, void *src );
 void        Chan_Token_Buffer_Free          ( void *buf );
-size_t      Chan_Buffer_Size_Bytes          ( Chan *self );
+extern size_t Chan_Buffer_Size_Bytes        ( Chan *self );
+extern size_t Chan_Buffer_Count             ( Chan *self );
 
 
 #define CHAN_SUCCESS(expr) ((expr)==0)

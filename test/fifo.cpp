@@ -27,6 +27,16 @@ class FifoTest:public ::testing::Test
   size_t sz;
 };
 
+TEST_F(FifoTest,BufferCount)
+{ EXPECT_EQ(16,Fifo_Buffer_Count(empty));
+  EXPECT_EQ(16,Fifo_Buffer_Count(full )); 
+}
+
+TEST_F(FifoTest,BufferSize)
+{ EXPECT_EQ(10,Fifo_Buffer_Size_Bytes(empty));
+  EXPECT_EQ(10,Fifo_Buffer_Size_Bytes(full )); 
+}
+
 TEST_F(FifoTest,AllocNonPow2)
 { EXPECT_TRUE(Fifo_Alloc(10,10)==(void*)0);
 }

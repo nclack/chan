@@ -396,6 +396,12 @@ inline
 size_t Fifo_Buffer_Size_Bytes(Fifo *self)
 { return ((Fifo_*)self)->buffer_size_bytes;
 }
+
+inline 
+size_t Fifo_Buffer_Count(Fifo *self)
+{ return ((Fifo_*)self)->ring->nelem;
+}
+
 void*
 Fifo_Alloc_Token_Buffer( Fifo *self_ )
 { Fifo_ *self = (Fifo_*)self_;

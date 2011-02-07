@@ -73,6 +73,7 @@ extern unsigned int Fifo_Push      ( Fifo *self, void **pbuf, size_t sz, int exp
 extern unsigned int Fifo_Push_Try  ( Fifo *self, void **pbuf, size_t sz);                    // might resize queue's bufs,  *pbuf==NULL ok (allocs)
 
 extern size_t       Fifo_Buffer_Size_Bytes ( Fifo *self );
+extern size_t       Fifo_Buffer_Count      ( Fifo *self );
        void*        Fifo_Alloc_Token_Buffer( Fifo *self );
        void         Fifo_Resize_Token_Buffer( Fifo *pself, void **pbuf );
 #define Fifo_Free_Token_Buffer(e) free(e)

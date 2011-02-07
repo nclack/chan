@@ -460,7 +460,13 @@ void Chan_Token_Buffer_Free( void *buf )
 { Fifo_Free_Token_Buffer(buf);
 }
 
+inline
 size_t Chan_Buffer_Size_Bytes( Chan *self )
 { return Fifo_Buffer_Size_Bytes(FIFO(self));
+} 
+
+inline
+size_t Chan_Buffer_Count( Chan *self )
+{ return Fifo_Buffer_Count(FIFO(self));
 } 
 
