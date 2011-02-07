@@ -42,10 +42,11 @@ void     Chan_Set_Expand_On_Full ( Chan* self, int  expand_on_full);            
 // Try    Fails immediately              Fails immediately.
 // Timed  Waits.  Fails after timeout.   Fails immediately if no sources, otherwise waits till timeout.
 
-unsigned int Chan_Next       ( Chan *self, void **pbuf, size_t sz); 
-unsigned int Chan_Next_Copy  ( Chan *self, void  *buf,  size_t sz); 
-unsigned int Chan_Next_Try   ( Chan *self, void **pbuf, size_t sz);                     
-unsigned int Chan_Next_Timed ( Chan *self, void **pbuf, size_t sz, unsigned timeout_ms );
+unsigned int Chan_Next         ( Chan *self,  void **pbuf, size_t sz);
+unsigned int Chan_Next_Copy    ( Chan *self,  void  *buf,  size_t sz);
+unsigned int Chan_Next_Try     ( Chan *self,  void **pbuf, size_t sz);
+unsigned int Chan_Next_Copy_Try( Chan *self_, void  *buf,  size_t sz);
+unsigned int Chan_Next_Timed   ( Chan *self,  void **pbuf, size_t sz,   unsigned timeout_ms );
 
 // ----
 // Peek

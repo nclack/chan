@@ -380,6 +380,18 @@ unsigned int Chan_Next_Try( Chan *self_, void **pbuf, size_t sz)
   return FAILURE;
 }
 
+unsigned int Chan_Next_Copy_Try( Chan *self_, void  *buf,  size_t sz) 
+{ chan_t *self = (chan_t*)self_;
+  switch(self->mode)
+  { case CHAN_READ:  return chan_pop (self,&buf,sz,1,0); break;
+    case CHAN_WRITE: return chan_push(self,&buf,sz,1,0); break;
+    default:
+      CHAN_ERR__INVALID_MODE;
+      break;
+  }
+  return FAILURE;
+}
+
 unsigned int Chan_Next_Timed( Chan *self_, void **pbuf, size_t sz, unsigned timeout_ms )
 { chan_t *self = (chan_t*)self_;
   switch(self->mode)
