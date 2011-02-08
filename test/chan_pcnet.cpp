@@ -88,7 +88,7 @@ class ChanPCNetTest: public ::testing::Test
 };
 
 typedef struct _input
-{ int            id;
+{ size_t         id;
   Chan          *chan;
   ChanPCNetTest *test;
   struct _input *next;
@@ -191,7 +191,7 @@ void ChanPCNetTest::execnet(int *graph, int nrows)
 void* producer(void* arg)
 { Chan* writer;
   int*  buf;
-  int id;
+  size_t id;
   ChanPCNetTest *test = GETTEST(arg);
   
   id = GETID(arg);
@@ -224,7 +224,8 @@ void* producer(void* arg)
 
 void* consumer(void* arg)
 { Chan* reader;
-  int*  buf,id;
+  int*  buf;
+  size_t id;
   ChanPCNetTest *test = GETTEST(arg);
   
   id = GETID(arg);
@@ -248,7 +249,8 @@ void* consumer(void* arg)
 
 void* processor(void* arg)
 { Chan *reader,*writer;
-  int  *buf,id;
+  int  *buf;
+  size_t id;
   ChanPCNetTest *test = GETTEST(arg);
   
   id = GETID(arg);
