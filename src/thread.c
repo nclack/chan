@@ -195,7 +195,11 @@ ErrorStolenUnlock:
 //  Condition Variables //////////////////////////////////////////////
 //  
 //  - Requires Vista or better
+//  - As far as I can tell, InitializeConditionVariable does nothing.
+//    I suppose it's there so that one day, it might.
 //////////////////////////////////////////////////////////////////////
+
+const Condition CONDITION_INITIALIZER = RTL_CONDITION_VARIABLE_INIT;
 
 Condition* Condition_Alloc()
 { Condition *c;
@@ -337,6 +341,7 @@ ErrorStolenUnlock:
 //  Condition Variables //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
+const Condition CONDITION_INITIALIZER = PTHREAD_COND_INITIALIZER;
 
 Condition* Condition_Alloc()
 { Condition *c;

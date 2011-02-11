@@ -54,6 +54,7 @@ void    Mutex_Lock  ( Mutex* self);
 // TODO:? int     Mutex_Try_Lock(Mutex* self);
 void    Mutex_Unlock( Mutex* self);
 
+extern const Condition CONDITION_INITIALIZER;
 Condition* Condition_Alloc     ( );
 void       Condition_Initialize( Condition* self);
 void       Condition_Free      ( Condition* self);

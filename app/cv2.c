@@ -93,8 +93,11 @@ void* consumer(void *p)
 #define N 6
 int main(int argc,char* argv[])
 { Thread* threads[N];
-  bufferNotFull  = Condition_Alloc();
-  bufferNotEmpty = Condition_Alloc();
+  Condition c1,c2;
+  c1 = CONDITION_INITIALIZER;
+  c2 = CONDITION_INITIALIZER;
+  bufferNotFull  = &c1; //Condition_Alloc();
+  bufferNotEmpty = &c2; //Condition_Alloc();
   bufferLock     = Mutex_Alloc();
 
   stop=0;
