@@ -2,12 +2,6 @@
 #include "config.h"
 #include "stdio.h"
 
-
-#ifdef WIN32
-#define ENDL "\r\n"
-#else
-#define ENDL "\n"
-#endif //WIN32
 #define thread_error(...)    do{fprintf(stderr,__VA_ARGS__);exit(-1);}while(0)
 #define thread_assert(e)     if(!(e)) thread_error("Assert failed in thread module" ENDL \
 																									 "\tFailed: %s" ENDL \

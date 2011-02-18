@@ -11,7 +11,7 @@
 // Line endiings
 //////////////////////////////////////////////////////////////////////
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #define ENDL "\r\n"
 #else
 #define ENDL "\n"
@@ -25,7 +25,7 @@
 #ifdef __GCC__
 #define inline __inline__
 #endif
-#ifdef WIN32
+#ifdef _MSC_VER
 #define inline __inline
 #endif
 #endif
@@ -38,7 +38,7 @@
 #cmakedefine HAVE_USLEEP
 #ifndef HAVE_USLEEP
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #define usleep(e) Sleep((unsigned long)((e)/1000.0)) // us -> ms
@@ -60,7 +60,7 @@
 #include <unistd.h>
 #else
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #define seed48(e)     srand(*(e))
 #define drand48() (( (double)rand() )/RAND_MAX)
 #else
