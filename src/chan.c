@@ -59,12 +59,11 @@ typedef struct
   u32 nreaders;
   u32 nwriters;
   u32 expand_on_full;
-  u32 abort_wait;
   u32 flush;
   
   Mutex              lock;
-  Condition          notfull;  //predicate: not full  || abort || expand_on_full
-  Condition          notempty; //predicate: not empty || abort || no writers 
+  Condition          notfull;  //predicate: not full  || expand_on_full
+  Condition          notempty; //predicate: not empty || no writers 
   Condition          changedRefCount; //predicate: refcount != n
   Condition          haveWriter; //predicate: nwriters>0
 
@@ -181,9 +180,10 @@ int Chan_Close( Chan *self_ )
   { __chan_t *q = self->q;
     switch(self->mode)
     { case CHAN_READ:  
-        Chan_Assert( (--(q->nreaders))>=0 ); break;
+        Chan_Assert( (--(q->nreaders))>=0 );
         if(q->nreaders==0)
           q->flush=0;
+        break;
       case CHAN_WRITE:
         Chan_Assert( (--(q->nwriters))>=0 );
         Condition_Notify_All(&q->haveWriter);
@@ -238,10 +238,8 @@ void Chan_Set_Expand_On_Full( Chan* self_, int expand_on_full)
 
 unsigned int chan_push__locked(__chan_t *q, void **pbuf, size_t sz, unsigned timeout_ms)
 { 
-  while(Fifo_Is_Full(q->fifo) && q->abort_wait==0 && q->expand_on_full==0)
+  while(Fifo_Is_Full(q->fifo) && q->expand_on_full==0)
     Condition_Wait(&q->notfull,&q->lock); // TODO: use timed wait?
-  if(q->abort_wait)
-    return FAILURE;
   if(FIFO_SUCCESS(Fifo_Push(q->fifo,pbuf,sz,q->expand_on_full)))
     return SUCCESS;
   return FAILURE;
@@ -254,23 +252,24 @@ inline int _pop_bypass_wait(__chan_t *q)
 
 unsigned int chan_pop__locked(__chan_t *q, void **pbuf, size_t sz, unsigned timeout_ms)
 { int starved;
-  while(Fifo_Is_Empty(q->fifo) && q->abort_wait==0 && !_pop_bypass_wait(q))
+  while(Fifo_Is_Empty(q->fifo) && !_pop_bypass_wait(q))
     Condition_Wait(&q->notempty,&q->lock); // TODO: use timed wait?
   starved = Fifo_Is_Empty(q->fifo) && q->nwriters==0;
-  if(q->abort_wait || starved)
-    return FAILURE;
   if(FIFO_SUCCESS(Fifo_Pop(q->fifo,pbuf,sz)))
     return SUCCESS;
   return FAILURE;
 }
 
+inline int _peek_bypass_wait(__chan_t *q)
+{ 
+  return q->nwriters==0 && q->flush;  
+}
+
 unsigned int chan_peek__locked(__chan_t *q, void **pbuf, size_t sz, unsigned timeout_ms)
 { int starved;
-  while(Fifo_Is_Empty(q->fifo) && q->abort_wait==0 && q->nwriters>0)
+  while(Fifo_Is_Empty(q->fifo) && !_peek_bypass_wait(q))
     Condition_Wait(&q->notempty,&q->lock); // TODO:!! use timed wait
   starved = Fifo_Is_Empty(q->fifo) && q->nwriters==0;
-  if(q->abort_wait || starved)
-    return FAILURE;
   if(FIFO_SUCCESS(Fifo_Peek(q->fifo,pbuf,sz)))
     return SUCCESS;
   return FAILURE;
@@ -333,7 +332,7 @@ unsigned int chan_peek(chan_t *self, void **pbuf, size_t sz, unsigned timeout_ms
     goto_if(CHAN_FAILURE(chan_peek__locked(q,pbuf,sz,timeout_ms)),NoPeek);
   }
   Mutex_Unlock(&self->q->lock);
-  Condition_Notify(&self->q->notfull);
+  // no size change so no notify
   return SUCCESS;
 NoPeek:
   Mutex_Unlock(&self->q->lock);
