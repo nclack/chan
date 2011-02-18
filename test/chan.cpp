@@ -103,6 +103,7 @@ TEST_F(ChanTest,PushFull)
   EXPECT_FALSE(CHAN_SUCCESS(Chan_Next_Try(writer,&buf,sz)));  //no expand - fails
   Chan_Set_Expand_On_Full(writer,1);
   EXPECT_TRUE (CHAN_SUCCESS(Chan_Next(writer,&buf,sz)));      //   expand - allocates new memory
+  Chan_Close(writer);
 }
 
 TEST_F(ChanTest,PeekEmpty)

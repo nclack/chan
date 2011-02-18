@@ -89,6 +89,8 @@ TEST(MutexTest,Inc)
   }
   for(i=0;i<N;++i)
     Thread_Join(pool[i]);
+  for(i=0;i<N;++i)
+    Thread_Free(pool[i]);
   EXPECT_EQ(c.n,N);
   Mutex_Free(c.lock);
 }
@@ -104,6 +106,8 @@ TEST(MutexTest,IncControl)
   }
   for(i=0;i<N;++i)
     Thread_Join(pool[i]);
+  for(i=0;i<N;++i)
+    Thread_Free(pool[i]);
   EXPECT_NE(c.n,N);
   Mutex_Free(c.lock);
 }

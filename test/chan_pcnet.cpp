@@ -121,6 +121,8 @@ void ChanPCNetTest::exec_one_chan(ThreadProc *procs,size_t n)
   { size_t i=0;
     for(i=0;i<n;++i)
       Thread_Join(threads[i]);
+    for(i=0;i<n;++i)
+      Thread_Free(threads[i]);
   }
 }
 
@@ -185,6 +187,8 @@ void ChanPCNetTest::execnet(int *graph, int nrows)
   { int i=0;
     for(i=0;i<nrows;++i)
       Thread_Join(threads[i]);
+    for(i=0;i<nrows;++i)
+      Thread_Free(threads[i]);
   }
 }
 
@@ -213,7 +217,7 @@ void* producer(void* arg)
       mymax(&test->pmax,buf[0]);
     }
     if(CHAN_FAILURE(Chan_Next(writer,(void**)&buf,sizeof(int))))
-      printf("Producer  %d *** push failed for %d"ENDL,id,buf[0]);
+      printf("Producer  %zu *** push failed for %d"ENDL,id,buf[0]);
      
   } while(!test->stop);
   Chan_Token_Buffer_Free(buf);
@@ -267,7 +271,7 @@ void* processor(void* arg)
       mymax(&test->ppmax,buf[0]);
     }
     if(CHAN_FAILURE(Chan_Next(writer,(void**)&buf,sizeof(int))))
-      printf("Processor %d *** push failed for %d"ENDL,id,buf[0]);
+      printf("Processor %zu *** push failed for %d"ENDL,id,buf[0]);
   } 
   Chan_Token_Buffer_Free(buf);
   report("Processor %d exiting"ENDL,id);
@@ -348,6 +352,7 @@ void *apc(void *q_)
   Chan *reader = Chan_Open(q,CHAN_READ);
   T v;
   EXPECT_TRUE(CHAN_SUCCESS(Chan_Next_Copy_Try(reader,&v,sizeof(T)) ));
+  Chan_Close(reader);
   return (void*)(v.a*v.b*v.c);
 }
 
@@ -366,4 +371,5 @@ TEST_F(ChanPCNetTest,AsynchronousProcedureCallPattern)
   Thread *t = Thread_Alloc(apc,(void*)q);
   EXPECT_EQ(6,(size_t) Thread_Join(t));
   Chan_Close(q);
+  Thread_Free(t);
 }

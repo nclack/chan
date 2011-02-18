@@ -185,11 +185,12 @@ typedef struct _ring_fifo
 
 Fifo*
 Fifo_Alloc(size_t buffer_count, size_t buffer_size_bytes )
-{ Fifo_ *self = (Fifo_ *)Fifo_Malloc( sizeof(Fifo_), "Fifo_Alloc" );
+{ Fifo_ *self;
   
   Fifo_Assert( IS_POW2( buffer_count ) );
   return_val_if(!IS_POW2(buffer_count),NULL);
 
+  self = (Fifo_ *)Fifo_Malloc( sizeof(Fifo_), "Fifo_Alloc" ); 
   self->head = 0;
   self->tail = 0;
   self->buffer_size_bytes = buffer_size_bytes;
