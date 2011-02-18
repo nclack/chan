@@ -14,9 +14,10 @@ typedef enum _chan_mode
   CHAN_MODE_MAX,
 } ChanMode;
 
-Chan  *Chan_Alloc              ( size_t buffer_count, size_t buffer_size_bytes);
-Chan  *Chan_Open               ( Chan *self, ChanMode mode);                                    // does ref counting and access type
-int    Chan_Close              ( Chan *self );                                                  // does ref counting
+       Chan  *Chan_Alloc              ( size_t buffer_count, size_t buffer_size_bytes);
+extern Chan  *Chan_Alloc_Copy         ( Chan *chan);
+       Chan  *Chan_Open               ( Chan *self, ChanMode mode);                                    // does ref counting and access type
+       int    Chan_Close              ( Chan *self );                                                  // does ref counting
 
 unsigned Chan_Get_Ref_Count      ( Chan* self);
 void     Chan_Wait_For_Ref_Count ( Chan* self, size_t n);
@@ -51,7 +52,7 @@ unsigned int Chan_Next_Timed   ( Chan *self,  void **pbuf, size_t sz,   unsigned
 // Peek
 // ----
 //
-// Does not require a mode to be set.
+// Requires read mode.
 //
 unsigned int Chan_Peek       ( Chan *self, void **pbuf, size_t sz );
 unsigned int Chan_Peek_Try   ( Chan *self, void **pbuf, size_t sz );
@@ -65,7 +66,7 @@ unsigned int Chan_Peek_Timed ( Chan *self, void **pbuf, size_t sz, unsigned time
 
 int         Chan_Is_Full                    ( Chan *self );
 int         Chan_Is_Empty                   ( Chan *self );
-inline void Chan_Resize                     ( Chan *self, size_t nbytes);
+extern void Chan_Resize                     ( Chan *self, size_t nbytes);
 
 void*       Chan_Token_Buffer_Alloc         ( Chan *self );
 void*       Chan_Token_Buffer_Alloc_And_Copy( Chan *self, void *src );
