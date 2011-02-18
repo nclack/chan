@@ -1,6 +1,6 @@
 #include "thread.h"
-#include "config.h"
 #include "stdio.h"
+#include "config.h"
 
 #define thread_error(...)    do{fprintf(stderr,__VA_ARGS__);exit(-1);}while(0)
 #define thread_assert(e)     if(!(e)) thread_error("Assert failed in thread module" ENDL \
@@ -13,6 +13,21 @@ typedef struct _closure_t
   ThreadProcRet ret;
 } closure_t;
 
+#ifdef USE_PTHREAD
+#include <pthread.h>
+#define _MUTEX_INITIALIZER     {PTHREAD_MUTEX_INITIALIZER,PTHREAD_MUTEX_INITIALIZER,0}
+#define _CONDITION_INITIALIZER PTHREAD_COND_INITIALIZER
+#endif //USE_PTHREAD
+
+#ifdef USE_WIN32_THREADS
+#ifndef RTL_CONDITION_VARIABLE_INIT
+#define RTL_CONDITION_VARIABLE_INIT {0}
+#endif
+#define _MUTEX_INITIALIZER     {0,0,0}
+#define _CONDITION_INITIALIZER RTL_CONDITION_VARIABLE_INIT
+#endif //USE_WIN32_THREADS
+extern const Mutex     MUTEX_INITIALIZER     = _MUTEX_INITIALIZER;
+extern const Condition CONDITION_INITIALIZER = _CONDITION_INITIALIZER;
 
 #ifdef USE_WIN32_THREADS
 #include <strsafe.h>
@@ -20,7 +35,7 @@ typedef struct _closure_t
 #define thread_assert_win32(e)     if(!(e)) {ReportLastWindowsError(); thread_error("Assert failed in thread module" ENDL \
                                                                                     "\tAt %s:%d" ENDL,#e,__FILE__,__LINE__ );}
 
-void ReportLastWindowsError(void) 
+static void ReportLastWindowsError(void) 
 { //EnterCriticalSection( _get_reporting_critical_section() );
   { // Retrieve the system error message for the last-error code
 
@@ -48,7 +63,7 @@ void ReportLastWindowsError(void)
         dw, lpMsgBuf); 
     
     // spam formated string to listeners
-    fprintf(stderr,lpDisplayBuf);
+    fprintf(stderr,"%s",lpDisplayBuf);
 
     LocalFree(lpMsgBuf);
     LocalFree(lpDisplayBuf);
@@ -123,6 +138,21 @@ void* Thread_Join(Thread *self_)
   return self->closure.ret;
 }
 
+inline void Thread_Exit(unsigned exitcode)
+{ ExitThread((DWORD)exitcode);
+}
+
+inline native_thread_id_t Thread_SelfID()
+{ return GetCurrentThreadId();
+}
+
+void Thread_Self(Thread* out)
+{ thread_t *self = (thread_t*) out;
+  memset(out,0,sizeof(thread_t));
+  self->handle = GetCurrentThread();
+  self->id     = GetThreadId(self->handle);
+}
+
 //////////////////////////////////////////////////////////////////////
 //  Mutex  ///////////////////////////////////////////////////////////
 //
@@ -134,12 +164,12 @@ void* Thread_Join(Thread *self_)
 //  [ ] Use CRITICAL_SECTION if the the SRWLock isn't available
 //      - Although, I think windows' Condition Variables would be missing too
 //////////////////////////////////////////////////////////////////////
-#define M_NATIVE(x)  (&(x)->lock)
-#define M_SELF(x)    (&(x)->self_lock)
+#define M_NATIVE(x)  ((PSRWLOCK)&((x)->lock))
+#define M_SELF(x)    ((PSRWLOCK)&((x)->self_lock))
 #define M_OWNER(x)   ((x)->owner)
 #define M_SELF_ID(x) (GetThreadId((x)->self_lock))
 
-const Mutex MUTEX_INITIALIZER = {0,0,0};
+//const Mutex MUTEX_INITIALIZER = {0,0,0};
 
 Mutex* Mutex_Alloc()
 { Mutex *m;
@@ -193,18 +223,20 @@ ErrorStolenUnlock:
 //    I suppose it's there so that one day, it might.
 //////////////////////////////////////////////////////////////////////
 
-const Condition CONDITION_INITIALIZER = RTL_CONDITION_VARIABLE_INIT;
+//const Condition CONDITION_INITIALIZER = RTL_CONDITION_VARIABLE_INIT;
+
+#define PCONDCAST(e) ((PCONDITION_VARIABLE)(e))
 
 Condition* Condition_Alloc()
 { Condition *c;
   thread_assert(c = (Condition*)malloc(sizeof(Condition)));
-  InitializeConditionVariable(c);
+  InitializeConditionVariable(PCONDCAST(c));
   return c;
 }
 
 void Condition_Initialize(Condition* c)
 { 
-  InitializeConditionVariable(c);
+  InitializeConditionVariable(PCONDCAST(c));
 }
 
 void Condition_Free(Condition* self)
@@ -218,18 +250,18 @@ void Condition_Free(Condition* self)
 void Condition_Wait(Condition* self, Mutex* lock)
 { 
   thread_assert_win32(
-    SleepConditionVariableSRW(self,M_NATIVE(lock),INFINITE,0));
+    SleepConditionVariableSRW(PCONDCAST(self),M_NATIVE(lock),INFINITE,0));
   M_OWNER(lock)=GetCurrentThreadId();
 }
 
 void Condition_Notify(Condition* self)
 { 
-  WakeConditionVariable(self);
+  WakeConditionVariable(PCONDCAST(self));
 }
 
 void Condition_Notify_All(Condition* self)
 { 
-  WakeAllConditionVariable(self);
+  WakeAllConditionVariable(PCONDCAST(self));
 }
 
 #endif // win32
@@ -271,6 +303,18 @@ void* Thread_Join(Thread *self_)
   return ret;
 }
 
+inline void Thread_Exit(unsigned exitcode)
+{ pthread_exit((void*)exitcode);
+}
+
+inline native_thread_id_t Thread_SelfID()
+{ return pthread_self();
+}
+
+void Thread_Self(Thread* out_)
+{ thread_t *out= (thread_t*)out_; 
+  out->handle = pthread_self();
+}
 //////////////////////////////////////////////////////////////////////
 //  Mutex  ///////////////////////////////////////////////////////////
 //
@@ -280,11 +324,13 @@ void* Thread_Join(Thread *self_)
 //////////////////////////////////////////////////////////////////////
 #define M_NATIVE(x) (&(x)->lock)
 #define M_SELF(x)   (&(x)->self_lock)
+/*
 const Mutex MUTEX_INITIALIZER = {
   PTHREAD_MUTEX_INITIALIZER,
   PTHREAD_MUTEX_INITIALIZER,
   0
 };
+*/
 
 Mutex* Mutex_Alloc()
 { Mutex *m;
@@ -335,7 +381,7 @@ ErrorStolenUnlock:
 //  Condition Variables //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-const Condition CONDITION_INITIALIZER = PTHREAD_COND_INITIALIZER;
+//const Condition CONDITION_INITIALIZER = PTHREAD_COND_INITIALIZER;
 
 Condition* Condition_Alloc()
 { Condition *c;

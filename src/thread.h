@@ -1,12 +1,43 @@
-#pragma once
-#include <stdlib.h> //for NULL
-#include "config.h"
+#ifndef _H_THREAD
+#define _H_THREAD
 
-/* Questions
- * - Is a condition variable always used with the same mutex?
- *   - Should the condition variable just be constructed with a reference to
- *     the mutex?  It doesn't look like any common thread api's do it; why not?
- */
+#include <stdlib.h> //for NULL
+
+//////////////////////////////////////////////////////////////////////
+// NOTES
+//
+// Windows Vista and later has almost one-to-one compatibility with pthreads.
+// Here I provide a wrapper to give the functionality provided by both
+// libraries a common interface.  I try to follow the pthread symantics when
+// possible.  Below are some exceptions:
+//
+// Thread_Alloc() and Thread_Free()
+//
+//   - need alloc/free symantics because of how windows allocates 
+//     threads.
+//
+// Thread_Exit(unsigned)
+//
+//   - windows threads return a DWORD that is usually interpreted as an exit
+//     code.  Pthreads return a void* that may point to the result of some
+//     computation.  The pthread convention is maintained by Thread_Join().
+//     That is, threads return a (void*).
+//
+//     Thread_Exit causes a thread to immediately abort.  There's no real
+//     isomorphism between pthread and windows here.  The return type
+//     of a windows thread isn't wide enough to use as a pointer on 64-bit
+//     systems.  As a result, it doesn't get used for Thread_Join(). 
+//
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// CONFIG
+//////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
+#define USE_WIN32_THREADS
+#else
+#define USE_PTHREAD
+#endif
 
 #ifdef __cplusplus
 extern "C"{
@@ -21,22 +52,31 @@ typedef pthread_cond_t  native_cond_t;
 #endif //USE_PTHREAD
 
 #ifdef USE_WIN32_THREADS
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-typedef HANDLE             native_thread_t;
-typedef DWORD              native_thread_id_t;
-typedef SRWLOCK            native_mutex_t;
-typedef CONDITION_VARIABLE native_cond_t;
+//#include <windows.h> // can't do this bc windows defines UINT8 etc... these collide with mylib names
+                       // so we fake it
+typedef void*               _HANDLE;
+typedef unsigned            _DWORD;
+typedef void*               _SRWLOCK;
+typedef struct{void* Ptr;}  _CONDITION_VARIABLE;
+
+typedef _HANDLE             native_thread_t;
+typedef _DWORD              native_thread_id_t;
+typedef _SRWLOCK            native_mutex_t;
+typedef _CONDITION_VARIABLE native_cond_t;
 #endif //USE_WIN32_THREADS
+
 
 typedef struct _mutex_t
 { native_mutex_t  lock; 
   native_mutex_t  self_lock;  
   native_thread_id_t owner;
 } Mutex;
-
+       
 typedef void          Thread;
 typedef native_cond_t Condition;
+            
+extern const Mutex     MUTEX_INITIALIZER;
+extern const Condition CONDITION_INITIALIZER;
 
 //Prefer pthread-style thread proc specification
 typedef void* (*ThreadProc)(void*);
@@ -46,15 +86,16 @@ typedef void* ThreadProcRet;
 Thread* Thread_Alloc ( ThreadProc function, ThreadProcArg arg);
 void    Thread_Free  ( Thread* self);
 void*   Thread_Join  ( Thread* self);
+void    Thread_Exit  ( unsigned exitcode);
+extern native_thread_id_t Thread_SelfID( );
+void    Thread_Self  ( Thread* out );
 
-extern const Mutex MUTEX_INITIALIZER;
 Mutex*  Mutex_Alloc ( );
 void    Mutex_Free  ( Mutex* self);
 void    Mutex_Lock  ( Mutex* self);
 // TODO:? int     Mutex_Try_Lock(Mutex* self);
 void    Mutex_Unlock( Mutex* self);
 
-extern const Condition CONDITION_INITIALIZER;
 Condition* Condition_Alloc     ( );
 void       Condition_Initialize( Condition* self);
 void       Condition_Free      ( Condition* self);
@@ -65,56 +106,6 @@ void       Condition_Notify_All( Condition* self);
 
 #ifdef __cplusplus
 }
-//////////////////////////////////////////////////////////////////////
-// C++ interface
-//////////////////////////////////////////////////////////////////////
-namespace thread{
-  class Th
-  { Thread *thread_;
-    public:
-      Th(ThreadProc function, ThreadProcArg arg) {thread_=Thread_Alloc(function,arg);}
-      virtual ~Th()                              {Thread_Free(thread_);}
-      inline void join()                         {Thread_Join(thread_);}
-  };
-
-  class AutoThread
-  { Th t_;
-    public:
-      AutoThread(ThreadProc function, ThreadProcArg arg) : t_(function,arg) {}
-      virtual ~AutoThread()                                                 {t_.join();}
-  };
-
-  class Mtx
-  { Mutex *mutex_;
-    public:
-      Mtx()                                      {mutex_=Mutex_Alloc();}
-      virtual ~Mtx()                             {Mutex_Free(mutex_);}
-      void lock()                                {Mutex_Lock(mutex_);}
-      inline void unlock()                       {Mutex_Unlock(mutex_);}
-    friend class CV;
-  };
-
-  class AutoMtx
-  { Mtx *m_;
-    Mtx  own_;
-    public:
-      AutoMtx():m_(NULL)                         {m_=&own_; m_->lock();}
-      AutoMtx(Mtx *mutex):m_(mutex)              {m_->lock();}
-      virtual ~AutoMtx()                         {m_->unlock();}
-    friend class CV;
-  };
-
-  class CV
-  { Condition* c_;
-    public:
-      CV()                                       {c_=Condition_Alloc();}
-      virtual ~CV()                              {Condition_Free(c_);}
-      inline void wait(Mtx *m)                   {Condition_Wait(c_,m->mutex_);}
-      inline void wait(AutoMtx *m)               {Condition_Wait(c_,m->m_->mutex_);}
-      inline void wait(Mutex *m)                 {Condition_Wait(c_,m);} 
-      inline void notify()                       {Condition_Notify(c_);}
-		inline void notify_all()                   {Condition_Notify_All(c_);}
-  };
-  
-} //end namespace thread
 #endif
+
+#endif //#ifndef _H_THREAD
