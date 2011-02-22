@@ -1,3 +1,7 @@
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-value"
+#pragma clang diagnostic ignored "-Wparentheses"
+
 #include <stdio.h>   // for printf used in reporting errors, etc...
 #include <string.h>
 #include "config.h"
@@ -209,6 +213,8 @@ int Chan_Close( Chan *self_ )
         if(notify)
           q->flush=1;
         break;
+      default:
+        break;
     }
   }
   Mutex_Unlock(&self->q->lock);
@@ -263,7 +269,7 @@ unsigned int chan_push__locked(__chan_t *q, void **pbuf, size_t sz, unsigned tim
   return FAILURE;
 }
 
-inline int _pop_bypass_wait(__chan_t *q)
+static inline int _pop_bypass_wait(__chan_t *q)
 { 
   return q->nwriters==0 && q->flush;  
 }
@@ -278,7 +284,7 @@ unsigned int chan_pop__locked(__chan_t *q, void **pbuf, size_t sz, unsigned time
   return FAILURE;
 }
 
-inline int _peek_bypass_wait(__chan_t *q)
+static inline int _peek_bypass_wait(__chan_t *q)
 { 
   return q->nwriters==0 && q->flush;  
 }
@@ -487,3 +493,4 @@ size_t Chan_Buffer_Count( Chan *self )
 { return Fifo_Buffer_Count(FIFO(self));
 } 
 
+#pragma clang diagnostic pop

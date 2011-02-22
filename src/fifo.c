@@ -1,3 +1,6 @@
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-value"
+
 #include "fifo.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -16,8 +19,8 @@
 void fifo_breakme() {}
 // warnings
 #if 1
-#define DEBUG_RING_FIFO_WARN_RESIZE_ON_PUSH  fifo_warning("Resized on push: *pbuf was smaller than nominal token buffer size. (%Iu < %Iu)\r\n",sz,self->buffer_size_bytes); fifo_breakme()
-#define DEBUG_RING_FIFO_WARN_RESIZE_ON_PEEK  fifo_warning("Resized on peek: *pbuf was smaller than nominal token buffer size. (%Iu < %Iu)\r\n",sz,self->buffer_size_bytes); fifo_breakme()
+#define DEBUG_RING_FIFO_WARN_RESIZE_ON_PUSH  fifo_warning("Resized on push: *pbuf was smaller than nominal token buffer size. (%zu < %zu)\r\n",sz,self->buffer_size_bytes); fifo_breakme()
+#define DEBUG_RING_FIFO_WARN_RESIZE_ON_PEEK  fifo_warning("Resized on peek: *pbuf was smaller than nominal token buffer size. (%zu < %zu)\r\n",sz,self->buffer_size_bytes); fifo_breakme()
 #else
 #define DEBUG_RING_FIFO_WARN_RESIZE_ON_PUSH
 #define DEBUG_RING_FIFO_WARN_RESIZE_ON_PEEK
@@ -78,7 +81,7 @@ void RequestStorage( void** array, size_t *nelem, size_t request, size_t bytes_p
   Fifo_Realloc( array, *nelem * bytes_per_elem, "Resize" );
 }
 
-inline size_t _next_pow2_size_t(size_t v)
+static inline size_t _next_pow2_size_t(size_t v)
 { v--;
   v |= v >> 1;
   v |= v >> 2;
@@ -425,3 +428,4 @@ unsigned char Fifo_Is_Full (Fifo *self_)
 { Fifo_ *self = (Fifo_*)self_;
   return ( (self)->head == (self)->tail + (self)->ring->nelem );
 }
+#pragma clang diagnostic pop

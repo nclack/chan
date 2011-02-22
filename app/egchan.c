@@ -72,7 +72,7 @@
 
 //inline int mymax(int* pa, int b);
 
-inline 
+static inline 
 void mymax(int* pa, int b)
 { *pa = (b>(*pa))?b:(*pa);
 }
@@ -110,7 +110,7 @@ void* producer(void* arg)
     {
       mymax(&pmax,*buf);
     }
-    CHAN_SUCCESS(Chan_Next(writer,(void**)&buf,sizeof(int)));
+    Chan_Next(writer,(void**)&buf,sizeof(int));
   } while(!stop);
   Chan_Token_Buffer_Free(buf);
   Chan_Close(writer);

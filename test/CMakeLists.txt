@@ -43,10 +43,12 @@ add_executable(alltests
 target_link_libraries(alltests
  ${GTEST_BOTH_LIBRARIES}
 )
-set_target_properties(
-  alltests
-  PROPERTIES
-    COMPILE_FLAGS ${OpenMP_C_FLAGS}
-    LINK_FLAGS    ${OpenMP_C_FLAGS}
-)
+if(${OpenMP_FOUND})
+  set_target_properties(
+    alltests
+    PROPERTIES
+      COMPILE_FLAGS ${OpenMP_C_FLAGS}
+      LINK_FLAGS    ${OpenMP_C_FLAGS}
+  )
+endif()
 gtest_add_tests(alltests " " ${PRIMARY_TEST_SOURCES})

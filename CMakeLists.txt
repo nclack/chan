@@ -46,6 +46,7 @@ endmacro()
 
   add_executable(cv app/cv2.c ${SOURCES})
   add_executable(egchan app/egchan.c ${SOURCES})
+  if(${OpenMP_FOUND})
   set_target_properties(
     cv
     egchan
@@ -53,6 +54,7 @@ endmacro()
       COMPILE_FLAGS ${OpenMP_C_FLAGS}
       LINK_FLAGS    ${OpenMP_C_FLAGS}
   )
+  endif()
 
 ###############################################################################
 #  Config
