@@ -278,9 +278,7 @@ void
 Fifo_Resize(Fifo* self_, size_t buffer_size_bytes)
 { Fifo_ *self = (Fifo_*)self_;
   vector_PVOID *r = self->ring;
-  size_t i,n = r->nelem,
-         head = MOD_UNSIGNED_POW2( self->head, n ), // Write point (push)- points to a "dead" buffer
-         tail = MOD_UNSIGNED_POW2( self->tail, n ); // Read point (pop)  - points to a "live" buffer
+  size_t i,n = r->nelem;
   if (self->buffer_size_bytes < buffer_size_bytes)
   {
     // Resize the buffers    

@@ -275,11 +275,9 @@ static inline int _pop_bypass_wait(__chan_t *q)
 }
 
 unsigned int chan_pop__locked(__chan_t *q, void **pbuf, size_t sz, unsigned timeout_ms)
-{ int starved;
-  while(Fifo_Is_Empty(q->fifo) && !_pop_bypass_wait(q))
+{ while(Fifo_Is_Empty(q->fifo) && !_pop_bypass_wait(q))
     Condition_Wait(&q->notempty,&q->lock); // TODO: use timed wait?
-  starved = Fifo_Is_Empty(q->fifo) && q->nwriters==0;
-  if(FIFO_SUCCESS(Fifo_Pop(q->fifo,pbuf,sz)))
+	if(FIFO_SUCCESS(Fifo_Pop(q->fifo,pbuf,sz)))
     return SUCCESS;
   return FAILURE;
 }
@@ -290,10 +288,8 @@ static inline int _peek_bypass_wait(__chan_t *q)
 }
 
 unsigned int chan_peek__locked(__chan_t *q, void **pbuf, size_t sz, unsigned timeout_ms)
-{ int starved;
-  while(Fifo_Is_Empty(q->fifo) && !_peek_bypass_wait(q))
+{ while(Fifo_Is_Empty(q->fifo) && !_peek_bypass_wait(q))
     Condition_Wait(&q->notempty,&q->lock); // TODO:!! use timed wait
-  starved = Fifo_Is_Empty(q->fifo) && q->nwriters==0;
   if(FIFO_SUCCESS(Fifo_Peek(q->fifo,pbuf,sz)))
     return SUCCESS;
   return FAILURE;
