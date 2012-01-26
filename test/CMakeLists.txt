@@ -10,7 +10,7 @@ cmake_minimum_required(VERSION 2.8)
 enable_testing(true)
 
 #find gtest
-set(GTEST_ROOT "${ROOT_3RDPARTY_PATH}/gtest-1.5.0")
+set(GTEST_ROOT "${ROOT_3RDPARTY_PATH}/gtest-1.6.0")
 set(GTEST_MSVC_SEARCH MD)
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
