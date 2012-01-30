@@ -72,8 +72,18 @@ typedef _map_payload
 } Payload;
 
 static void* map_consumer(MapConsumerArgs *args)
-{ void *data;
-  /// \todo !!! TRY(data=)
+{ Chan    *reader;
+  Payload *data   = NULL;
+  size_t   nbytes = 0;
+  reader = Chan_Open(args->q,CHAN_READ);
+  TRY( Chan_Next(reader,&data,&nbytes) ,ErrorFailedRead);
+  TRY( args->f(data->d,data->s)        ,ErrorFailedApply);
+ErrorFailedApply:
+  Chan_Token_Buffer_Free(data);
+ErrorFailedRead:
+  Chan_Close(reader);
+  /// \todo How to handle errors/pass them back to map()
+  return NULL;
 }
 
 /** Allocates \a dst data if necessary, otherwise shrinks \a src to fit.
