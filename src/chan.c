@@ -122,7 +122,6 @@ Chan* Chan_Alloc( size_t buffer_count, size_t buffer_size_bytes)
   return (Chan*)c;
 }
 
-inline
 Chan *Chan_Alloc_Copy( Chan *chan)
 { return Chan_Alloc(Chan_Buffer_Count(chan),Chan_Buffer_Size_Bytes(chan));
 }

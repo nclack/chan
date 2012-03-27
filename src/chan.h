@@ -66,13 +66,13 @@ unsigned int Chan_Peek_Timed ( Chan *self, void **pbuf, size_t sz, unsigned time
 
 int         Chan_Is_Full                    ( Chan *self );
 int         Chan_Is_Empty                   ( Chan *self );
-extern void Chan_Resize                     ( Chan *self, size_t nbytes);
+void        Chan_Resize                     ( Chan *self, size_t nbytes);
 
 void*         Chan_Token_Buffer_Alloc         ( Chan *self );
 void*         Chan_Token_Buffer_Alloc_And_Copy( Chan *self, void *src );
 void          Chan_Token_Buffer_Free          ( void *buf );
-extern size_t Chan_Buffer_Size_Bytes          ( Chan *self );
-extern size_t Chan_Buffer_Count               ( Chan *self );
+size_t        Chan_Buffer_Size_Bytes          ( Chan *self );
+size_t        Chan_Buffer_Count               ( Chan *self );
 
 
 #define CHAN_SUCCESS(expr) ((expr)==0)

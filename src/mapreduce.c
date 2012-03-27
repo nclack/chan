@@ -1,10 +1,16 @@
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include "mapreduce.h"
 #include "thread.h"
 #include "chan.h"
 
 #define LOG(...) fprintf(stderr,__VA_ARGS__)
 #define ENDL "\n"
-#define TRY(e,lbl) if(!(e)) {LOG("*** Error [%s]: %s(%d)"ENDL "Expression evaluated as false."ENDL "%s"ENDL),#lbl,__FILE__,__LINE__,#e); goto lbl;}
+#define TRY(e,lbl) do { if(!(e)) \
+    {LOG("*** Error [%s]: %s(%d)"ENDL \
+         "Expression evaluated as false."ENDL \
+         "%s"ENDL,#lbl,__FILE__,__LINE__,#e); goto lbl;} } while(0)
 
 struct _map_reduce_data
 { void   *data;
@@ -13,7 +19,7 @@ struct _map_reduce_data
 };
 
 static int   _nthreads = 8;
-static Mutex _lock     = MUTEX_INITIALIZER; // right now, mostly protects access to _nthreads
+static Mutex _lock     = {0}; // right now, mostly protects access to _nthreads
 
 MRData MRPackage(void *buf, size_t bytesof_elem, size_t bytesof_data)
 { MRData out = {buf,bytesof_elem,bytesof_data};
@@ -32,23 +38,23 @@ void MRData_Release(MRData *mrdata)
 
 void MRSetWorkerThreadCount(int nthreads)
 { 
-  Mutex_Lock(_lock);
+  Mutex_Lock(&_lock);
   _nthreads = nthreads;
-  Mutex_Unlock(_lock);
+  Mutex_Unlock(&_lock);
 }
 
-static Thread **alloc_threads(ThreadProc function,ThreadProc arg, int *nthreads)
+static Thread **alloc_threads(ThreadProc function,void *arg, int *nthreads)
 { 
   Thread **ts;
   int i;
   *nthreads = 0;
-  Mutex_Lock(_lock);
+  Mutex_Lock(&_lock);
   TRY(ts = (Thread**)malloc(sizeof(Thread*)*_nthreads),MemoryError);
   for(i=0;i<_nthreads;++i)
     ts[i] = Thread_Alloc(function,arg);
   *nthreads = _nthreads;
 MemoryError:
-  Mutex_Unlock(_unlock);
+  Mutex_Unlock(&_lock);
   return ts;
 }
 
@@ -61,23 +67,24 @@ static void free_threads(Thread** ts, int nthreads)
   }
 }
 
-typedef _map_consumer_args
+typedef struct _map_consumer_args
 { Chan       *q;
-  MRFunction *f;
+  MRFunction  f;
 } MapConsumerArgs;
 
-typedef _map_payload
+typedef struct _map_payload
 { void *d;
   void *s;
 } Payload;
 
-static void* map_consumer(MapConsumerArgs *args)
+static void* map_consumer(void *args_)
 { Chan    *reader;
   Payload *data   = NULL;
   size_t   nbytes = 0;
+  MapConsumerArgs *args = (MapConsumerArgs*) args_;
   reader = Chan_Open(args->q,CHAN_READ);
-  TRY( Chan_Next(reader,&data,&nbytes) ,ErrorFailedRead);
-  TRY( args->f(data->d,data->s)        ,ErrorFailedApply);
+  TRY( Chan_Next(reader,(void**)&data,nbytes) ,ErrorFailedRead);
+  TRY( args->f(data->d,data->s)       ,ErrorFailedApply);
 ErrorFailedApply:
   Chan_Token_Buffer_Free(data);
 ErrorFailedRead:
@@ -133,12 +140,12 @@ MRData map(MRData dst, MRData src, MRFunction f)
   args.f = f;
   TRY(ts = alloc_threads(map_consumer,&args,&nthreads),ErrorAllocThreads);
 
-  { void *s;
+  { void *s,*d;
     Payload *data;
     Chan    *writer;
-    TRY( data  =(Payload*)Chan_Token_Buffer_Alloc(q), ErrorChanData);
-    TRY( writer=Chan_Open(q,CHAN_WRITE),ErrorChanOpen);
-    for(s=src.data;s<src.data+bytesof_data;s+=src.bytesof_elem)
+    TRY( data  =(Payload*)Chan_Token_Buffer_Alloc(args.q), ErrorChanData);
+    TRY( writer=Chan_Open(args.q,CHAN_WRITE),ErrorChanOpen);
+    for(s=src.data,d=dst.data;s<src.data+src.bytesof_data;s+=src.bytesof_elem,d+=dst.bytesof_elem)
     { data->s = s;
       data->d = d;
       TRY(CHAN_SUCCESS(Chan_Next(writer,(void**)&data,sizeof(void*))),ErrorChanWrite);
@@ -151,7 +158,7 @@ ErrorChanOpen:
 ErrorChanData:
   free_threads(ts,nthreads);
 ErrorAllocThreads:
-  Chan_Close(q);
+  Chan_Close(args.q);
 ErrorMemory:
   return result;
 }
