@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 2.8)
 project(chan)
+set(CPACK_PACKAGE_VERSION_MAJOR 0)
+set(CPACK_PACKAGE_VERSION_MINOR 0)
+set(CPACK_PACKAGE_VERSION_PATCH 1a)
+
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY 
+    "A multi-producer multi-consumer asynchrononous FIFO queue with useful blocking behavior.")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
-if(WIN32)
-  set(ROOT_3RDPARTY_PATH "${CMAKE_SOURCE_DIR}/../3rdParty/")
-endif()
+set(ROOT_3RDPARTY_PATH "${CMAKE_SOURCE_DIR}/3rdParty/")
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Debug CACHE STRING
@@ -83,3 +87,20 @@ endmacro()
 ###############################################################################
 enable_testing(true)
 add_subdirectory(test)
+
+###############################################################################
+#  Docs
+###############################################################################
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/doc/Doxyfile
+                 @ONLY
+                 )
+  add_custom_target(apidocs
+    ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doc/Doxyfile
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT           "Generating API Docs"
+    VERBATIM
+    )
+endif()
