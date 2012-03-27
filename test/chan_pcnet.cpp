@@ -41,9 +41,11 @@
  */
 #include <gtest/gtest.h>
 #include <stdio.h>
+#include "config.h"
 #include "thread.h"
 #include "chan.h"
 
+#define ENDL "\n"
 
 #if 0
 #define report(...) printf(__VA_ARGS__)
