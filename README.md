@@ -33,6 +33,6 @@ Building usually looks like this:
      cmake ..
      make
 
-[1]: http://nclack.github.com/chan/build/doc/apidocs/index.html
+[1]: http://nclack.github.com/chan/build/doc/apihtml/index.html
 [2]: http://www.cmake.org/
 
