@@ -1,66 +1,6 @@
-//TODO: different networks
-//FIXME: if consumer starts first, then loop dies
-//       Could think of something like fall through happens when a flag is set,
-//             otherwise waits ... the "flush" flag
-//       - did this:     
-//         0. flush flag is false
-//         1. when last producer closes, flush flags gets set to true
-//         2. when last consumer closes, flush flag is reset to false.
-//
-//         Still have a problem in this situation
-//
-//           1. consumer starts
-//           2. producer starts
-//           3. producer closes
-//           4. consumer closes - it emptied the queue, saw it was ok to not
-//                                wait, and exited
-//           5. producer starts
-//           6. producer closes
-//
-//           It didn't wait for _all_ the producers to start.  The trouble is 
-//           that there's an indefinte wait between thread start and the
-//           Chan_Open(_,CHAN_WRITE) call.  Pre-opening would solve this 
-//           problem, but seems a bit awkward.
-//
-//           There needs to be sufficient time for all threads to open
-//           the channels or there needs to be a wait mechanism to signal
-//           that all the expected channels have been opened.
-//
-//           How would that look:
-//
-//             wait for reader count (q,n)
-//             wait for writer count (q,n)
-//
-//                impl by waiting on a condition triggered each time the count
-//                changes.
-//
-
-/* Notes on testing
- *
- *
- * o  test for early consumer shutdown
- *
- *    many-to-many connection
- *    setup consumers first
- *    small delay between thread starts on main thread so consumers have a
- *          chance to hit their Chan_Next call
- *
- * o  failure modes
- *
- *    all produced items are not consumed
- *        items are ints
- *        keep track of max produced item
- *        keep track of max consumed item
- *        increment item on each production cycle ensuring synchronized inc so
- *            every cycle is counted
- *        compare max's at end to ensure they're equal
- *
- *    deadlock
- *        [ ] need a timed thread join
- *        Detect using timeout on thread join. (no timed join in pth)
- *        Normally threads should quit t seconds after stop flag is set,
- *        exceeding a time e>t (e is the wait time) indicates a deadlock.
- *
+/** \file
+ *  A simple example of using \ref Chan used to bang out problems from time to
+ *  time.
  */
 
 #include <stdio.h>

@@ -1,4 +1,6 @@
-/*
+/** \file
+ * Condition variable test
+ *
  * Based on the "Using Conditional Variables" example on msdn
  * http://msdn.microsoft.com/en-us/library/ms686903(v=vs.85).aspx
  *

@@ -1,3 +1,144 @@
+/** \file 
+    \ref Chan implementation.
+
+    \mainpage
+    \ref Chan is a cross-platfrom zero-copy multi-producer mutli-consumer
+    asynchronous FIFO queue for passing messages between threads.
+
+    Reading and writing to the queue are both performed via Chan_Next().
+    Whether a "read" or a "write" happens depends on the \a mode passed to
+    Chan_Open(), which returns a reference-counted "reader" or "writer"
+    reference to the queue.
+
+    Note that "opening" a channel is different than "allocating" it.  A \ref
+    Chan is typically allocated once, but may be opened and closed many times.
+    Chan_Alloc() initializes and reserves memory for the queue.  Internally,
+    Chan_Open() does little more than some bookkeeping.
+    
+    \ref Chan was designed so that Chan_Next() operations block the calling
+    thread under some circumstances.  See \ref next for details.  With proper
+    use, this design garauntees that certain networks of threads (namely,
+    directed acyclic graphs) connected by \ref Chan instances will deliver
+    every message emited from a producer to a consumer in that network.  Once
+    the network is assembled, messages will be recieved in topological order.
+
+    \section ex Example producer/consumer
+
+    An example producer thread might look something like this:
+    \code
+    void producer(Chan *q)
+    { void  *data = Chan_Token_Buffer_Alloc(q);
+      size_t nbytes;
+      Chan  *output = Chan_Open(q,CHAN_WRITE);
+      while( getdata(&data,&nbytes) )
+        if( CHAN_FAILURE( Chan_Next(output,&data,&nbytes)))
+          break;
+      Chan_Close(output);
+      Chan_Token_Buffer_Free(data);
+    }
+    \endcode
+
+    An example consumer might look something like this:
+    \code
+    void consumer(Chan *q)
+    { void *data = Chan_Token_Buffer_Alloc(q);
+      size_t nbytes;
+      Chan *input = Chan_Open(q,CHAN_READ);
+      while( CHAN_SUCCESS( Chan_Next(input,&data,&nbytes)))
+        dosomething(data,nbytes);
+      Chan_Close(input);
+      Chan_Token_Buffer_Free(data);
+    }
+    \endcode
+
+    Both the \c producer() and \c consumer() take a \ref Chan*, \c q, as input.
+    This is the communication channel that will link the two threads.  Both
+    functions start by using Chan_Token_Buffer_Alloc() to allocate space for
+    the first message.  It isn't neccessary to call this in \c producer(), but
+    it is a recommended pattern.  See \ref mem for details.
+
+    The \c producer() opens a \ref CHAN_WRITE reference to \c q, and
+    generates data using the mysterious \c getdata() procedure that fills the 
+    \c data buffer with something interesting.  It is ok if \c getdata()
+    changes or reallocates the \c data pointer.
+
+    The producer() then pushes \c data onto the queue with Chan_Next().  Pushing 
+    just swaps the address pointed to by \c data with the address of an unused buffer
+    that the queue has been keeping track of, so pushing is fast.  In the example,
+    if the push fails, the \c producer() will clean up and terminate.  Techinically,
+    the push can only fail here if something goes wrong with the under-the-hood 
+    synchronization.
+
+    The consumer() thread will wait at the first Chan_Next() call till a message is
+    available.  The order in which the produce() or consumer() threads are started
+    does not matter.  Popping just swaps the address pointed to by \c data with the
+    last message on the queue, so popping is fast.  This behavior is the reason behind 
+    allocating the \c data buffer with Chan_Token_Buffer_Alloc(); the queue
+    will hold on to that buffer and recycle it later.
+    
+    Now suppose we have a different scenario.  The \c consumer thread starts, 
+    calls Chan_Next() and begins waiting for data, but \c producer() never 
+    produces any data; \c getdata() returns false.
+    When the \c producer() calls Chan_Close(), this releases the last writer
+    reference to the queue and notifies waiting threads.  The \c consumer()'s
+    call to Chan_Next() will return false, since no data was available, and
+    the consumer can get on with it's life.
+
+    \section next Next Functions
+  
+    These require a mode to be set via Chan_Open().
+    For \ref Chan's open in read mode, does a pop.  Reads will fail if there
+        are no writers for the \ref Chan and the \ref Chan is empty and
+        a writer was at some point opened for the \ref Chan.
+        Otherwise, when the \ref Chan is empty, reads will block.
+    For \ref Chan's open in write mode, does a push.  Writes will block when
+        the \ref Chan is full.
+
+    \verbatim
+      *    Overflow                       Underflow
+    =====  ============================   ===================
+    -      Waits or expands.              Fails if no sources, otherwise waits.
+    Copy   Waits or expands.              Fails if no sources, otherwise waits.
+    Try    Fails immediately              Fails immediately.
+    Timed  Waits.  Fails after timeout.   Fails immediately if no sources, otherwise waits till timeout.
+    \endverbatim
+
+    \section peek Peek Functions
+
+    The Chan_Peek() functions behave very similarly to the Chan_Next() family.
+    However, Chan_Peek() does not alter the queue.  The message at the end
+    of the queue is copied into supplied buffer.  The buffer may be resized
+    to fit the message.
+
+    The Chan_Peek() functions do not require a \ref Chan to be opened in any
+    particular mode.  However, the \ref Chan must be opened with Chan_Open().
+    The \ref CHAN_PEEK mode is recommended for readability.
+
+    \section mem Memory management
+
+    \ref Chan is a zero-copy queue.  Instead of copying data, the queue 
+    operates on pointers.  The pointers address heap allocated blocks of 
+    data that are, ideally, big enough for your messages.  The block size 
+    is set by the Chan_Alloc() call. Chan_Resize() can be used to change 
+    the size of the blocks, though it is only possible to \a increase the size.
+
+    When a buffer is swapped on to a queue via Chan_Next(), it may be resized
+    so it is large enough to hold a block.  It is recommended that  
+    Chan_Token_Buffer_Alloc() is used to pre-allocate buffers that 
+    are to be swapped on to the queue.  If nothing else, it might help you
+    remember to free any blocks returned by Chan_Next().
+
+    That said, it's definitely possible to do:
+    \code
+    { void *data    = NULL;
+      size_t nbytes = 0;
+      Chan_Next(q,&data,&nbytes);             // q can have CHAN_READ or CHAN_WRITE mode
+      // data now points to a buffer of size nbytes.
+      // if Chan_Next failed, data might still be NULL.
+      if(data) Chan_Token_Buffer_Free(data);  // remember to free the data!
+    }
+    \endcode
+  */
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-value"
 #pragma clang diagnostic ignored "-Wparentheses"
@@ -16,7 +157,6 @@
 
 //////////////////////////////////////////////////////////////////////
 //  Logging    ///////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////// 
 void chan_breakme() {}
 #define chan_warning(...) printf(__VA_ARGS__);
