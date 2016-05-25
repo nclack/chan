@@ -3,6 +3,8 @@
 Chan is a cross-platfrom zero-copy multi-producer multi-consumer
 asynchronous FIFO queue written in C.
 
+[![Build status](https://ci.appveyor.com/api/projects/status/0irf77l0k72o876x?svg=true)](https://ci.appveyor.com/project/nclack/chan)
+
 ## Introduction
 
 I tried to keep the interface simple.  See the detailed [API docs][1]
