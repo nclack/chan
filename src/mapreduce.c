@@ -50,7 +50,7 @@
          "%s"ENDL,#lbl,__FILE__,__LINE__,#e); goto lbl;} } while(0)
 
 struct _map_reduce_data
-{ void   *data;
+{ char   *data;
   size_t  bytesof_elem;
   size_t  bytesof_data;
 };
