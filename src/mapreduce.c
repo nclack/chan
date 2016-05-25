@@ -177,7 +177,7 @@ MRData map(MRData dst, MRData src, MRFunction f)
   args.f = f;
   TRY(ts = alloc_threads(map_consumer,&args,&nthreads),ErrorAllocThreads);
 
-  { void *s,*d;
+  { char *s,*d;
     Payload *data;
     Chan    *writer;
     TRY( data  =(Payload*)Chan_Token_Buffer_Alloc(args.q), ErrorChanData);
